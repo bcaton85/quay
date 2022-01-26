@@ -6,5 +6,5 @@ setup(name='quay',
       author='quay team',
       author_email='',
       url='https://github.com/bcaton85/quay',
-      packages=['data'],
+      packages=['data','data.model'],
      )
