@@ -9,7 +9,7 @@ if os.path.isfile(requirementPath):
         for line in f.read().splitlines():
             if not line.startswith("git"):
                 install_requires.append(line)
-
+print(install_requires)
 setup(name='quay',
       version='3.6',
       description='Quay application',
