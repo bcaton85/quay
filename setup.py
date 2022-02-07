@@ -6,7 +6,9 @@ requirementPath = quay_dir + '/requirements.txt'
 install_requires = []
 if os.path.isfile(requirementPath):
     with open(requirementPath) as f:
-        install_requires = f.read().splitlines()
+        for line in f.read().splitlines():
+            if not line.startswith("git"):
+                install_requires.append(line)
 
 setup(name='quay',
       version='3.6',
