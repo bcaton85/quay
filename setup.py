@@ -1,4 +1,4 @@
-from distutils.core import setup
+from distutils.core import setup, find_packages
 import os
 
 quay_dir = os.path.dirname(os.path.realpath(__file__))
@@ -16,6 +16,6 @@ setup(name='quay',
       author='quay team',
       author_email='',
       url='https://github.com/bcaton85/quay',
-      packages=['data','data.model','data.model.oci','util','util.security','util.metrics'],
+      packages=find_packages(),
       install_requires=install_requires,
      )
