@@ -16,6 +16,6 @@ setup(name='quay',
       author='quay team',
       author_email='',
       url='https://github.com/bcaton85/quay',
-      packages=['data','data.model','util.bytes'],
+      packages=['data','data.model','util'],
       install_requires=install_requires,
      )
