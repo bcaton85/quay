@@ -2,7 +2,7 @@ from distutils.core import setup
 from setuptools import find_packages
 import os
 
-packages = [ "alembic", "Authlib", "bitmath", "boto3", "botocore", "cachetools", "cryptography", "Deprecated", "elasticsearch", "Flask", "hashids", "jsonschema", "keystoneauth1", "peewee", "pymemcache", "PyYAML", "redis", "rehash", "six", "SQLAlchemy", "stripe", "tldextract", "toposort", "tzlocal", "beautifulsoup4", "bintrees", "geoip2", "gevent", "greenlet", "gunicorn", "Jinja2", "mixpanel", "netaddr", "psutil", "PyJWT", "pyOpenSSL", "raven", "redlock", "requests", "Werkzeug", "xhtml2pdf" ]
+packages = [ "alembic", "Authlib", "bitmath", "boto3", "bcrypt", "botocore", "cachetools", "cryptography", "Deprecated", "elasticsearch", "Flask", "hashids", "jsonschema", "keystoneauth1", "peewee", "pymemcache", "PyYAML", "redis", "rehash", "six", "SQLAlchemy", "stripe", "tldextract", "toposort", "tzlocal", "beautifulsoup4", "bintrees", "geoip2", "gevent", "greenlet", "gunicorn", "Jinja2", "mixpanel", "netaddr", "psutil", "PyJWT", "pyOpenSSL", "raven", "redlock", "requests", "Werkzeug", "xhtml2pdf" ]
 
 quay_dir = os.path.dirname(os.path.realpath(__file__))
 requirementPath = quay_dir + '/requirements.txt'
