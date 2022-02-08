@@ -2,7 +2,7 @@ from distutils.core import setup
 from setuptools import find_packages
 import os
 
-packages = [ "alembic", "Authlib", "bitmath", "boto3", "bcrypt", "botocore", "cachetools", "cryptography", "Deprecated", "elasticsearch", "Flask", "hashids", "jsonschema", "keystoneauth1", "peewee", "pymemcache", "PyYAML", "redis", "rehash", "six", "SQLAlchemy", "stripe", "tldextract", "toposort", "tzlocal", "beautifulsoup4", "bintrees", "geoip2", "gevent", "greenlet", "gunicorn", "Jinja2", "mixpanel", "netaddr", "psutil", "PyJWT", "pyOpenSSL", "raven", "redlock", "requests", "Werkzeug", "xhtml2pdf" ]
+packages = [ "prometheus_client", "alembic", "Authlib", "bitmath", "boto3", "bcrypt", "botocore", "cachetools", "cryptography", "Deprecated", "elasticsearch", "Flask", "hashids", "jsonschema", "keystoneauth1", "peewee", "pymemcache", "PyYAML", "redis", "rehash", "six", "SQLAlchemy", "stripe", "tldextract", "toposort", "tzlocal", "beautifulsoup4", "bintrees", "geoip2", "gevent", "greenlet", "gunicorn", "Jinja2", "mixpanel", "netaddr", "psutil", "PyJWT", "pyOpenSSL", "raven", "redlock", "requests", "Werkzeug", "xhtml2pdf" ]
 
 quay_dir = os.path.dirname(os.path.realpath(__file__))
 requirementPath = quay_dir + '/requirements.txt'
@@ -19,6 +19,6 @@ setup(name='quay',
       author='quay team',
       author_email='',
       url='https://github.com/bcaton85/quay',
-      packages=['data','data.model','data.model.oci','util','util.security','util.metrics'],
+      packages=['data','data.model','data.model.oci','util','util.security','util.metrics','image','image.docker'],
       install_requires=install_requires,
      )
