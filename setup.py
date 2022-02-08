@@ -2,21 +2,23 @@ from distutils.core import setup
 from setuptools import find_packages
 import os
 
+packages = [ "alembic", "Authlib", "bitmath", "boto3", "botocore", "cachetools", "cryptography", "Deprecated", "elasticsearch", "Flask", "hashids", "jsonschema", "keystoneauth1", "peewee", "pymemcache", "PyYAML", "redis", "rehash", "six", "SQLAlchemy", "stripe", "tldextract", "toposort", "tzlocal", "beautifulsoup4", "bintrees", "geoip2", "gevent", "greenlet", "gunicorn", "Jinja2", "mixpanel", "netaddr", "psutil", "PyJWT", "pyOpenSSL", "raven", "redlock", "requests", "Werkzeug", "xhtml2pdf" ]
+
 quay_dir = os.path.dirname(os.path.realpath(__file__))
 requirementPath = quay_dir + '/requirements.txt'
 install_requires = []
 if os.path.isfile(requirementPath):
     with open(requirementPath) as f:
         for line in f.read().splitlines():
-            if not line.startswith("git"):
+            if not line.startswith("git") and line.split('==')[0] in packages:
                 install_requires.append(line)
-print(install_requires)
+
 setup(name='quay',
       version='3.6',
       description='Quay application',
       author='quay team',
       author_email='',
       url='https://github.com/bcaton85/quay',
-      packages=find_packages(),
+      packages=['data','data.model','data.model.oci','util','util.security','util.metrics'],
       install_requires=install_requires,
      )
