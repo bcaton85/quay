@@ -19,6 +19,6 @@ setup(name='quay',
       author='quay team',
       author_email='',
       url='https://github.com/bcaton85/quay',
-      packages=['data','data.model','data.model.oci','util','util.security','util.metrics','image','image.docker', 'image.docker.schema2', 'image.shared','digest', 'oauth'],
+      packages=['auth','data','data.model','data.model.oci','util','util.security','util.metrics','image','image.docker', 'image.docker.schema2', 'image.shared','digest', 'oauth'],
       install_requires=install_requires,
      )
