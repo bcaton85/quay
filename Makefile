@@ -217,6 +217,15 @@ local-dev-up: local-dev-clean node_modules | build-image-quay
 	while ! test -e ./static/build/main-quay-frontend.bundle.js; do sleep 2; done
 	@echo "You can now access the frontend at http://localhost:8080"
 
+.PHONY: ci-up
+ci-up: local-dev-clean
+	$(DOCKER_COMPOSE) up -d redis quay-db
+	$(DOCKER) exec -t quay-db bash -c 'while ! pg_isready; do echo "waiting for postgres"; sleep 2; done'
+	DOCKER_USER="$$(id -u):0" $(DOCKER_COMPOSE) up -d quay
+	# $(DOCKER_COMPOSE) up -d clair-db
+	# $(DOCKER) exec -t clair-db bash -c 'while ! pg_isready; do echo "waiting for postgres"; sleep 2; done'
+	# $(DOCKER_COMPOSE) up -d clair
+
 local-docker-rebuild:
 	$(DOCKER_COMPOSE) up -d --build redis
 	$(DOCKER_COMPOSE) up -d --build quay-db
