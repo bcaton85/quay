@@ -23,6 +23,42 @@ def test_list_all_users(disabled, client):
                 assert user["enabled"]
 
 
+@pytest.mark.parametrize(
+    "query",
+    [
+        ("user"),
+    ],
+)
+def test_query_users(query, client):
+    with client_with_identity("devtable", client) as cl:
+        params = {"query": query}
+        result = conduct_api_call(cl, SuperUserList, "GET", params, None, 200).json
+        assert len(result["users"])
+        for user in result["users"]:
+            assert query in user["username"]
+
+
+@pytest.mark.parametrize(
+    "field, direction",
+    [
+        ("username", "asc"),
+        ("username", "desc"),
+        ("email", "asc"),
+        ("email", "desc"),
+    ],
+)
+def test_sort_users(field, direction, client):
+    with client_with_identity("devtable", client) as cl:
+        params = {"sort": field, "direction": direction}
+        result = conduct_api_call(cl, SuperUserList, "GET", params, None, 200).json
+        assert len(result["users"])
+        for i in range(1, len(result["users"])):
+            if direction == "asc":
+                assert result["users"][i - 1][field] <= result["users"][i][field]
+            else:
+                assert result["users"][i - 1][field] >= result["users"][i][field]
+
+
 def test_change_install_user(client):
     with client_with_identity("devtable", client) as cl:
         params = {"username": "randomuser"}

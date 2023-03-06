@@ -371,14 +371,36 @@ class SuperUserList(ApiResource):
     @query_param(
         "disabled", "If false, only enabled users will be returned.", type=truthy_bool, default=True
     )
+    @query_param(
+        "query", "Returns paginated list of users with matching usernames", type=str, default=None
+    )
+    @query_param(
+        "sort",
+        "Returns paginated list of users sorted by the given field name (username, email)",
+        type=str,
+        default=None,
+    )
+    @query_param(
+        "direction",
+        "Returns paginated list of users in ascending or descending order (asc, desc)",
+        type=str,
+        default=None,
+    )
     @require_scope(scopes.SUPERUSER)
-    def get(self, parsed_args):
+    @page_support()
+    def get(self, parsed_args, page_token):
         """
         Returns a list of all users in the system.
         """
         if SuperUserPermission().can():
-            users = pre_oci_model.get_active_users(disabled=parsed_args["disabled"])
-            return {"users": [user.to_dict() for user in users]}
+            users, count, next_page_token = pre_oci_model.get_active_users(
+                disabled=parsed_args["disabled"],
+                search_query=parsed_args["query"],
+                field_sort=parsed_args["sort"],
+                direction=parsed_args["direction"],
+                page_token=page_token,
+            )
+            return ({"users": [user.to_dict() for user in users], "count": count}, next_page_token)
 
         raise Unauthorized()
 

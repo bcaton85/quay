@@ -14,7 +14,7 @@
             ng-disabled="currentPage == 0"
             ng-click="changePage(-1)">&#10094;</button>
     <button class="btn btn-default"
-            ng-disabled="currentPage >= getPageCount(pageSize, totalCount) - 1"
+            ng-disabled="currentPage >= getPageCount(pageSize, totalCount) - 1 || loading"
             ng-click="changePage(1)">&#10095;</button>
   </span>
 </div>

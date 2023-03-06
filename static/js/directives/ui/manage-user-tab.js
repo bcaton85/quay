@@ -19,6 +19,7 @@ angular.module('quay').directive('manageUserTab', function () {
       $scope.users = null;
       $scope.orderedUsers = [];
       $scope.usersPerPage = 10;
+      $scope.maxPage = 0;
 
       $scope.newUser = {};
       $scope.createdUser = null;
@@ -36,6 +37,7 @@ angular.module('quay').directive('manageUserTab', function () {
         'TB': 1024**4,
       };
       $scope.quotaUnits = Object.keys($scope.disk_size_units);
+      $scope.loading = false;
 
       $scope.showQuotaConfig = function (user) {
         if (StateService.inReadOnlyMode()) {
@@ -77,16 +79,41 @@ angular.module('quay').directive('manageUserTab', function () {
                                                              ['username', 'email'], []);
       };
 
-      var loadUsersInternal = function () {
-        ApiService.listAllUsers().then(function (resp) {
-          $scope.users = resp['users'];
-          sortUsers();
+      var loadUsersInternal = function (page = 0, nextPage = null) {
+        var initialLoad = page == 0;
+        var params = {}
+        if(nextPage != null  && $scope.nextPage != ""){
+          params["next_page"] = nextPage;
+        }
+        if($scope.options.filter != null && $scope.options.filter != "") {
+          params["query"] = $scope.options.filter
+        }
+        if($scope.options.predicate != null  && $scope.options.predicate != "") {
+          params["sort"] = $scope.options.predicate
+        }
+        if($scope.options.reverse) {
+          params["direction"] = "desc"
+        } else {
+          params["direction"] = "asc"
+        }
+        $scope.loading = true;
+        ApiService.listAllUsers(null, params).then(function (resp) {
+          $scope.users = initialLoad ? resp['users'] : [...$scope.users, ...resp['users']];
+          $scope.count = resp['count'];
+          $scope.next_page_token = resp['next_page'];
+          $scope.maxPage = initialLoad ? 0 : page;
+          if(initialLoad){
+            $scope.options.page = 0;
+          }
           $scope.showInterface = true;
+          $scope.loading = false;
         }, function (resp) {
           $scope.users = [];
           $scope.usersError = ApiService.getErrorMessage(resp);
+          $scope.loading = false;
         });
       };
+
       $scope.tablePredicateClass = function(name, predicate, reverse) {
         if (name != predicate) {
           return '';
@@ -306,9 +333,28 @@ angular.module('quay').directive('manageUserTab', function () {
         }
       });
 
-      $scope.$watch('options.predicate', sortUsers);
-      $scope.$watch('options.reverse', sortUsers);
-      $scope.$watch('options.filter', sortUsers);
+      $scope.$watch('options.predicate', function(value){
+        loadUsersInternal();
+      });
+      $scope.$watch('options.reverse', function(value){
+        loadUsersInternal();
+      });
+
+
+      var debounce = null;
+      $scope.$watch('options.filter', function(value){
+        // Prevents request being made on each key input,
+        // must wait 2.5 seconds with no input before making request
+        if(debounce != null){
+          clearTimeout(debounce);
+        }
+        debounce = setTimeout(loadUsersInternal,250)
+      });
+      $scope.$watch('options.page',function(value, oldValue){
+        if(value > $scope.maxPage && !$scope.loading){
+          loadUsersInternal(value, $scope.next_page_token);
+        }
+      })
     }
   };
   return directiveDefinitionObject;
