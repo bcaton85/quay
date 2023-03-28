@@ -4,11 +4,24 @@ import logging
 
 from typing import Callable
 from peewee import Select, fn
-from data.registry_model.quota import add_blob_size, reset_backfill
+from data.registry_model.quota import (
+    add_blob_size,
+    delete_tag_with_quota,
+    get_all_blob_sizes,
+    get_namespace_size,
+    get_repository_size,
+    increment_namespacesize,
+    increment_repositorysize,
+    only_tag_in_namespace,
+    only_tag_in_repository,
+    reset_backfill,
+)
 
 import features
 from app import app, storage
 from data.database import (
+    QuotaNamespaceSize,
+    QuotaRepositorySize,
     db,
     get_epoch_timestamp_ms,
     db_disallow_replica_use,
@@ -166,12 +179,30 @@ class ProxyModel(OCIModel):
         tags = oci.tag.get_tag_with_least_lifetime_end_for_ns(repo_ref.namespace_name)
         if tags is not None:
             for tag in tags:
-                oci.tag.delete_tag(tag.repository_id, tag.name)
+                delete_tag_with_quota(tag.repository_id, tag.name)
                 curr_ns_size = namespacequota.get_namespace_size(repo_ref.namespace_name)
                 if (curr_ns_size + image_size) <= ns_quota_limit:
                     return
         # if we got here, then there aren't enough tags in the namespace to expire, so we raise an exception
         raise QuotaExceededException
+
+    def calculate_quota_size(self, repository_id, tag_id, manifest_id):
+        if features.QUOTA_MANAGEMENT:
+            parent_tag = None
+            try:
+                parent_tag = (
+                    TagTable.select(TagTable.id, TagTable.manifest)
+                    .join(ManifestChild, on=(ManifestChild.manifest == TagTable.manifest))
+                    .where(ManifestChild.child_manifest == manifest_id)
+                    .get()
+                )
+            except TagTable.DoesNotExist:
+                pass
+            blobs = get_all_blob_sizes(manifest_id)
+            alive_tag = parent_tag.id if parent_tag is not None else tag_id
+            add_blob_size(repository_id, alive_tag, blobs)
+        else:
+            reset_backfill(repository_id)
 
     def lookup_manifest_by_digest(
         self,
@@ -337,6 +368,7 @@ class ProxyModel(OCIModel):
         self._proxy.manifest_exists(manifest_ref, ACCEPTED_MEDIA_TYPES)
         upstream_manifest = self._pull_upstream_manifest(repo_ref.name, manifest_ref)
         manifest, tag = create_manifest_fn(repo_ref, upstream_manifest, manifest_ref)
+        self.calculate_quota_size(repo_ref._db_id, tag._db_id, manifest._db_id)
         return manifest, tag
 
     def _update_manifest_for_tag(
@@ -385,6 +417,7 @@ class ProxyModel(OCIModel):
                 if upstream_manifest is None:
                     upstream_manifest = self._pull_upstream_manifest(repo_ref.name, manifest_ref)
                 self._check_image_upload_possible_or_prune(repo_ref, upstream_manifest)
+            add_blob_size(repo_ref._db_id, tag._db_id, {})
             return tag, False
 
         if upstream_manifest is None:
@@ -401,7 +434,8 @@ class ProxyModel(OCIModel):
                     q.execute()
                     self._create_placeholder_blobs(upstream_manifest, manifest.id, repo_ref.id)
                     db_tag = oci.tag.get_tag_by_manifest_id(repo_ref.id, manifest.id)
-                    return Tag.for_tag(db_tag, self._legacy_image_id_handler), False
+                self.calculate_quota_size(repo_ref.id, db_tag.id, manifest.id)
+                return Tag.for_tag(db_tag, self._legacy_image_id_handler), False
 
         # if we got here, the manifest is stale, so we both create a new manifest
         # entry in the db, and retarget the tag.
@@ -621,13 +655,6 @@ class ProxyModel(OCIModel):
         except ManifestBlob.DoesNotExist:
             ManifestBlob.create(manifest_id=manifest_id, blob=blob, repository_id=repo_id)
 
-            # Add blobs to namespace/repo total. If feature is not enabled the total
-            # should be marked stale
-            if features.QUOTA_MANAGEMENT:
-                add_blob_size(repo_id, manifest_id, [(blob.id, blob.image_size)])
-            else:
-                reset_backfill(repo_id)
-
         return blob
 
     def _create_placeholder_blobs(
@@ -644,7 +671,6 @@ class ProxyModel(OCIModel):
                 repo_id,
             )
 
-        # TODO(quota): can consolidate blob sizes to make a single add_blob_size call
         for layer in manifest.filesystem_layers:
             self._create_blob(layer.digest, layer.compressed_size, manifest_id, repo_id)
 

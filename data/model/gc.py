@@ -548,19 +548,6 @@ def _garbage_collect_manifest(manifest_id, context):
             .execute()
         )
 
-        blob_sizes = []
-        if features.QUOTA_MANAGEMENT:
-            # Subtract the blob size from the namespace and repository totals
-            for manifest_blob in (
-                ImageStorage.select(ImageStorage.image_size, ImageStorage.id)
-                .join(ManifestBlob, on=(ImageStorage.id == ManifestBlob.blob))
-                .where(
-                    ManifestBlob.manifest == manifest_id,
-                    ManifestBlob.repository == context.repository,
-                )
-            ):
-                blob_sizes.append((manifest_blob.id, manifest_blob.image_size))
-
         # Delete the manifest blobs for the manifest.
         deleted_manifest_blob = (
             ManifestBlob.delete()
@@ -569,13 +556,6 @@ def _garbage_collect_manifest(manifest_id, context):
             )
             .execute()
         )
-
-        # Subtract blobs from namespace/repo total. If feature is not enabled the total
-        # should be marked stale
-        if features.QUOTA_MANAGEMENT:
-            subtract_blob_size(manifest.repository_id, manifest_id, blob_sizes)
-        else:
-            reset_backfill(manifest.repository_id)
 
         # Delete the security status for the manifest
         deleted_manifest_security = (

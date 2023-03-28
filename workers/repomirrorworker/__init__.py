@@ -7,6 +7,7 @@ import traceback
 from typing import Optional
 
 from prometheus_client import Gauge
+from data.registry_model.quota import delete_tag_with_quota
 
 import features
 
@@ -18,7 +19,7 @@ from data.model.user import retrieve_robot_token
 from data.logs_model import logs_model
 from data.registry_model import registry_model
 from data.database import RepoMirrorConfig, RepoMirrorStatus
-from data.model.oci.tag import delete_tag, retarget_tag, lookup_alive_tags_shallow
+from data.model.oci.tag import retarget_tag, lookup_alive_tags_shallow
 from notifications import spawn_notification
 from util.audit import wrap_repository
 from util.repomirror.skopeomirror import SkopeoMirror, SkopeoResults
@@ -411,7 +412,7 @@ def rollback(
         #  If the tag has a start time, it was created.
         elif tag.lifetime_start_ms:
             logger.debug("Repo mirroring rollback delete tag '%s'" % tag)
-            delete_tag(mirror.repository, tag.name)
+            delete_tag_with_quota(mirror.repository, tag.name)
 
 
 def delete_obsolete_tags(mirror, tags):
@@ -420,7 +421,7 @@ def delete_obsolete_tags(mirror, tags):
 
     for tag in obsolete_tags:
         logger.debug("Repo mirroring delete obsolete tag '%s'" % tag.name)
-        delete_tag(mirror.repository, tag.name)
+        delete_tag_with_quota(mirror.repository, tag.name)
 
     return obsolete_tags
 

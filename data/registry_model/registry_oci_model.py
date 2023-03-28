@@ -2,15 +2,22 @@ import logging
 
 from contextlib import contextmanager
 from collections import defaultdict
-from peewee import fn
+import os
+import time
+from peewee import JOIN, fn
 
 from data import database
 from data import model
 from data.cache import cache_key
 from data.model import oci, DataModelException
 from data.model.oci.retriever import RepositoryContentRetriever
+from data.model.oci.tag import get_tag
 from data.readreplica import ReadOnlyModeException
 from data.database import (
+    ManifestChild,
+    Tag as TagTable,
+    ImageStorage,
+    ManifestBlob,
     db_transaction,
     Image,
     IMAGE_NOT_SCANNED_ENGINE_VERSION,
@@ -32,7 +39,15 @@ from data.registry_model.datatypes import (
     ManifestLayer,
 )
 from data.registry_model.label_handlers import apply_label_to_manifest, LABEL_EXPIRY_KEY
+from data.registry_model.quota import (
+    add_blob_size,
+    delete_tag_with_quota,
+    get_all_blob_sizes,
+    reset_backfill,
+    subtract_blob_size,
+)
 from data.registry_model.shared import SyntheticIDHandler
+import features
 from image.shared import ManifestException
 from image.docker.schema1 import (
     DOCKER_SCHEMA1_CONTENT_TYPES,
@@ -43,6 +58,7 @@ from util.timedeltastring import convert_to_timedelta
 
 
 logger = logging.getLogger(__name__)
+get_epoch_timestamp_ms = lambda: int(time.time() * 1000)
 
 
 class OCIModel(RegistryDataInterface):
@@ -407,6 +423,9 @@ class OCIModel(RegistryDataInterface):
                 except ValueError:
                     pass
 
+            if features.QUOTA_MANAGEMENT:
+                existing_tag = get_tag(repository_ref._db_id, tag_name)
+
             # Re-target the tag to it.
             tag = oci.tag.retarget_tag(
                 tag_name,
@@ -416,6 +435,35 @@ class OCIModel(RegistryDataInterface):
             )
             if tag is None:
                 return (None, None)
+
+            if features.QUOTA_MANAGEMENT:
+                if existing_tag is None or (
+                    existing_tag is not None and existing_tag.manifest != tag.manifest
+                ):
+                    # If tag is being targeted to a different manifest it's essentially
+                    # deleting the blobs belonging to the previous manifest. Let's get all
+                    # the blobs under the previous manifest and subtract them.
+                    old_blobs = {}
+                    if existing_tag is not None:
+                        old_blobs = get_all_blob_sizes(existing_tag.manifest)
+
+                    # Get the blobs of the new manifest
+                    new_blobs = get_all_blob_sizes(tag.manifest)
+
+                    # An optimization - if the blob is in both it ends up getting subtracted then re-added.
+                    # Skip this by removing common blobs.
+                    if len(old_blobs) > 0:
+                        for blob_id in list(new_blobs.keys()):
+                            if blob_id in old_blobs:
+                                old_blobs.pop(blob_id, None)
+                                new_blobs.pop(blob_id, None)
+
+                    if len(old_blobs) > 0:
+                        subtract_blob_size(tag.repository, tag.id, old_blobs)
+
+                    add_blob_size(tag.repository, tag.id, new_blobs)
+            else:
+                reset_backfill(tag.repository)
 
             return (
                 wrapped_manifest,
@@ -509,7 +557,7 @@ class OCIModel(RegistryDataInterface):
         Deletes the latest, *active* tag with the given name in the repository.
         """
         with db_disallow_replica_use():
-            deleted_tag = oci.tag.delete_tag(repository_ref._db_id, tag_name)
+            deleted_tag = delete_tag_with_quota(repository_ref._db_id, tag_name)
             if deleted_tag is None:
                 return None
 
