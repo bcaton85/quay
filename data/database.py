@@ -665,7 +665,9 @@ class BaseModel(ReadReplicaSupportedModel):
 
 class User(BaseModel):
     uuid = CharField(default=uuid_generator, max_length=36, null=True, index=True)
-    username = CharField(unique=True, index=True)
+    username = FullIndexedCharField(
+        match_function=db_match_func, unique=True, index=True, strict=False
+    )
     password_hash = CharField(null=True)
     email = CharField(unique=True, index=True, default=random_string_generator(length=64))
     verified = BooleanField(default=False)
@@ -1011,6 +1013,12 @@ class QuotaRepositorySize(BaseModel):
     size_bytes = BigIntegerField(null=False, default=0)
     backfill_start_ms = BigIntegerField(null=True)
     backfill_complete = BooleanField(null=False, default=False)
+
+
+class QuotaRegistrySize(BaseModel):
+    size_bytes = BigIntegerField(null=False, default=0)
+    running = BooleanField(null=False, default=False)
+    completed_ms = BigIntegerField(null=True)
 
 
 class DeletedRepository(BaseModel):

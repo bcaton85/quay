@@ -71,18 +71,18 @@
           <div class="resource-view" resource="organizationsResource"
                error-message="'Could not load organizations'">
             <div class="manager-header" header-title="Organizations
-              {{ Features.QUOTA_MANAGEMENT ? '(Total Quota Consumption: ' + bytesToHumanReadableString(registryQuota) + ')' : '' }}
+              {{ Features.QUOTA_MANAGEMENT ? '(Total Quota Consumption: ' + bytesToHumanReadableString(registrySizeBytes) + ', Last updated: '+ lastRan +')' : '' }}
             ">
             </div>
 
             <div class="co-top-bar">
               <span class="co-filter-box">
-                <span class="page-controls" total-count="orderedOrgs.entries.length" current-page="options.page" page-size="orgsPerPage"></span>
+                <span class="page-controls" total-count="count" current-page="options.page" page-size="orgsPerPage" loading="loading"></span>
                 <input class="form-control" type="text" ng-model="options.filter" placeholder="Filter Organizations..." style="margin-right: 10px;">
               </span>
             </div>
 
-            <table class="cor-table" ng-if="orderedOrgs.entries.length && !isLoading">
+            <table class="cor-table" ng-if="organizations.length && !isLoading">
               <thead>
               <td style="width: 24px;"></td>
 
@@ -100,7 +100,7 @@
               <td style="width: 24px;"></td>
               </thead>
 
-              <tr ng-repeat="current_org in orderedOrgs.entries | slice
+              <tr ng-repeat="current_org in organizations | slice
                      :(orgsPerPage * options.page)
                      :(orgsPerPage * (options.page + 1))"
                   class="org-row">
@@ -155,7 +155,7 @@
     </cor-tab-panel>
 
     <!-- Modal quota configuration -->
-      <div ng-repeat="current_org in orderedOrgs.entries" class="org-row">
+      <div ng-repeat="current_org in organizations" class="org-row">
           <div class="co-dialog modal fade" id="quotaConfigModal-{{ current_org.name }}">
             <div class="modal-dialog">
               <div class="modal-content padding-2percent">

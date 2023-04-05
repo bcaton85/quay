@@ -1207,6 +1207,11 @@ CONFIG_SCHEMA = {
             "description": "The time to delay the Quota backfill operation. Must be set longer than the time required to complete the deployment.",
             "x-example": 30,
         },
+        "QUOTA_REGISTRY_SIZE_POLL_MINUTES": {
+            "type": "int",
+            "description": "Time between each registry size calculation in minutes. Value should be kept longer than 10min for registries containing a large amount of blobs.",
+            "x-example": 30,
+        },
         "FEATURE_EXPORT_COMPLIANCE": {
             "type": "boolean",
             "description": "Use Red Hat Export Compliance Service during Red Hat SSO (only used in Quay.io)",

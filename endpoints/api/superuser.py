@@ -12,6 +12,7 @@ from random import SystemRandom
 from flask import request, make_response, jsonify
 
 from cryptography.hazmat.primitives import serialization
+from data.registry_model.quota import get_registry_size
 
 import features
 
@@ -204,13 +205,65 @@ class SuperUserOrganizationList(ApiResource):
     @require_fresh_login
     @verify_not_prod
     @nickname("listAllOrganizations")
+    @parse_args()
+    @query_param(
+        "query",
+        "Returns paginated list of organizations with matching names",
+        type=str,
+        default=None,
+    )
+    @query_param(
+        "sort",
+        "Returns paginated list of organizations sorted by the given field name (name, email)",
+        type=str,
+        default=None,
+    )
+    @query_param(
+        "direction",
+        "Returns paginated list of organizations in ascending or descending order (asc, desc)",
+        type=str,
+        default=None,
+    )
     @require_scope(scopes.SUPERUSER)
-    def get(self):
+    @page_support()
+    def get(self, parsed_args, page_token):
         """
         Returns a list of all organizations in the system.
         """
         if SuperUserPermission().can():
-            return {"organizations": [org.to_dict() for org in pre_oci_model.get_organizations()]}
+            orgs, count, next_page_token = pre_oci_model.get_organizations(
+                page_token=page_token,
+                search_query=parsed_args["query"],
+                field_sort=parsed_args["sort"],
+                direction=parsed_args["direction"],
+            )
+            return (
+                {"organizations": [org.to_dict() for org in orgs], "count": count},
+                next_page_token,
+            )
+
+        raise Unauthorized()
+
+
+@resource("/v1/superuser/registrysize/")
+@internal_only
+@show_if(features.SUPER_USERS)
+class SuperUserRegistrySize(ApiResource):
+    """
+    Resource for the current registry size.
+    """
+
+    @require_fresh_login
+    @verify_not_prod
+    @nickname("getRegistrySize")
+    @require_scope(scopes.SUPERUSER)
+    def get(self):
+        """
+        Returns size of the registry
+        """
+        if SuperUserPermission().can():
+            registry_size = get_registry_size()
+            return {"size_bytes": registry_size.size_bytes, "last_ran": registry_size.completed_ms}
 
         raise Unauthorized()
 

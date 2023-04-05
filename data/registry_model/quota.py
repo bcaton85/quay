@@ -10,6 +10,7 @@ from data.database import (
     ManifestBlob,
     ManifestChild,
     QuotaNamespaceSize,
+    QuotaRegistrySize,
     Repository,
     QuotaRepositorySize,
     Tag,
@@ -351,3 +352,42 @@ def reset_namespace_backfill(namespace_id: int):
         ).execute()
     except QuotaNamespaceSize.DoesNotExist:
         pass
+
+
+def calculate_registry_size():
+    quota_registry_size = get_registry_size()
+    exists = quota_registry_size is not None
+
+    if not exists or (exists and not quota_registry_size.running):
+        set_registry_size_running(exists)
+        total_size = sum_registry_size()
+        update_registry_size(total_size)
+
+
+def get_registry_size():
+    try:
+        return QuotaRegistrySize.select().get()
+    except QuotaRegistrySize.DoesNotExist:
+        return None
+
+
+def set_registry_size_running(exists=False):
+    if exists:
+        # pylint: disable-next=no-value-for-parameter
+        QuotaRegistrySize.update({"running": True}).execute()
+    else:
+        # pylint: disable-next=no-value-for-parameter
+        QuotaRegistrySize.insert({"running": True}).execute()
+
+
+def sum_registry_size():
+    # pylint: disable-next=no-value-for-parameter
+    total_size = ImageStorage.select(fn.SUM(ImageStorage.image_size)).scalar()
+    return total_size if total_size is not None else 0
+
+
+def update_registry_size(size=0):
+    # pylint: disable-next=no-value-for-parameter
+    QuotaRegistrySize.update(
+        {"running": False, "size_bytes": size, "completed_ms": get_epoch_timestamp_ms()}
+    ).execute()

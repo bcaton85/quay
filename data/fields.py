@@ -244,8 +244,10 @@ def _add_fulltext(field_class):
         __fulltext__ = True
 
         def __init__(self, match_function, *args, **kwargs):
+            strict = kwargs.pop("strict", None)
             field_class.__init__(self, *args, **kwargs)
             self.match_function = match_function
+            self.strict = strict
 
         def match(self, query):
             return self.match_function(self, query)
@@ -254,22 +256,28 @@ def _add_fulltext(field_class):
             return prefix_search(self, query)
 
         def __mod__(self, _):
-            raise Exception("Unsafe operation: Use `match` or `match_prefix`")
+            if self.strict:
+                raise Exception("Unsafe operation: Use `match` or `match_prefix`")
 
         def __pow__(self, _):
-            raise Exception("Unsafe operation: Use `match` or `match_prefix`")
+            if self.strict:
+                raise Exception("Unsafe operation: Use `match` or `match_prefix`")
 
         def __contains__(self, _):
-            raise Exception("Unsafe operation: Use `match` or `match_prefix`")
+            if self.strict:
+                raise Exception("Unsafe operation: Use `match` or `match_prefix`")
 
         def contains(self, _):
-            raise Exception("Unsafe operation: Use `match` or `match_prefix`")
+            if self.strict:
+                raise Exception("Unsafe operation: Use `match` or `match_prefix`")
 
         def startswith(self, _):
-            raise Exception("Unsafe operation: Use `match` or `match_prefix`")
+            if self.strict:
+                raise Exception("Unsafe operation: Use `match` or `match_prefix`")
 
         def endswith(self, _):
-            raise Exception("Unsafe operation: Use `match` or `match_prefix`")
+            if self.strict:
+                raise Exception("Unsafe operation: Use `match` or `match_prefix`")
 
     return indexed_class
 

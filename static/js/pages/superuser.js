@@ -49,6 +49,11 @@
     };
     $scope.quotaUnits = Object.keys($scope.disk_size_units);
     $scope.registryQuota = null;
+    $scope.registrySizeBytes = null;
+    $scope.lastRan = null;
+    $scope.maxPage = 0;
+    $scope.loading = false;
+    $scope.nextPageToken = null;
 
     $scope.showQuotaConfig = function (org) {
         if (StateService.inReadOnlyMode()) {
@@ -113,29 +118,42 @@
       $scope.loadOrganizationsInternal();
     };
 
-    var sortOrgs = function() {
-      if (!$scope.organizations) {return;}
-      $scope.orderedOrgs = TableService.buildOrderedItems($scope.organizations, $scope.options,
-                                                           ['name', 'email'], []);
-      };
-
-    var caclulateRegistryStorage = function () {
-      if (!Features.QUOTA_MANAGEMENT || !$scope.organizations) {
-        return;
+    $scope.loadOrganizationsInternal = function(page = 0, nextPage = null) {
+      var initialLoad = page == 0;
+      var params = {}
+      if(nextPage != null  && $scope.nextPage != ""){
+        params["next_page"] = nextPage;
       }
-      let total = 0;
-      $scope.organizations.forEach(function (obj){
-        total += obj['quota_report']['quota_bytes'];
-      })
-      $scope.registryQuota = total;
-    }
-
-    $scope.loadOrganizationsInternal = function() {
-      $scope.organizationsResource = ApiService.listAllOrganizationsAsResource().get(function(resp) {
-        $scope.organizations = resp['organizations'];
-        sortOrgs();
-        caclulateRegistryStorage();
+      if($scope.options.filter != null && $scope.options.filter != "") {
+        params["query"] = $scope.options.filter
+      }
+      if($scope.options.predicate != null  && $scope.options.predicate != "") {
+        params["sort"] = $scope.options.predicate
+      }
+      if($scope.options.reverse) {
+        params["direction"] = "desc"
+      } else {
+        params["direction"] = "asc"
+      }
+      $scope.loading = true;
+      $scope.organizationsResource = ApiService.listAllOrganizationsAsResource(params).get(function(resp) {
+        $scope.organizations = initialLoad ? resp['organizations'] : [...$scope.organizations, ...resp['organizations']];
+        $scope.loading = false;
+        $scope.maxPage = initialLoad ? 0 : page;
+        $scope.nextPageToken = resp["next_page"];
+        if(initialLoad){
+          $scope.options.page = 0;
+        }
+        $scope.count = resp["count"];
         return $scope.organizations;
+      }, function(resp){
+        $scope.loading = false;
+      });
+      // TODO: is this in the right place?
+      ApiService.getRegistrySize().then(function(resp) {
+        $scope.registrySizeBytes = resp['size_bytes'];
+        var lastRan = new Date(resp['last_ran']);
+        $scope.lastRan = `${lastRan.toLocaleDateString("en-US")} ${lastRan.toLocaleTimeString("en-US")}`;
       });
     };
 
@@ -233,9 +251,25 @@
 
     // Load the initial status.
     $scope.checkStatus();
-    $scope.$watch('options.predicate', sortOrgs);
-    $scope.$watch('options.reverse', sortOrgs);
-    $scope.$watch('options.filter', sortOrgs);
-
+    $scope.$watch('options.predicate', function(){
+      $scope.loadOrganizationsInternal()
+    });
+    $scope.$watch('options.reverse', function(){
+      $scope.loadOrganizationsInternal()
+    });
+    var debounce = null;
+    $scope.$watch('options.filter', function(){
+        // Prevents request being made on each key input,
+        // must wait 2.5 seconds with no input before making request
+        if(debounce != null){
+          clearTimeout(debounce);
+        }
+        debounce = setTimeout($scope.loadOrganizationsInternal,250)
+    });
+    $scope.$watch('options.page',function(value){
+      if(value > $scope.maxPage && !$scope.loading){
+        $scope.loadOrganizationsInternal(value, $scope.nextPageToken);
+      }
+    })
   }
 }());

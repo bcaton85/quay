@@ -12,7 +12,12 @@ from data.model.organization import create_organization
 from data.model.repository import create_repository, get_repository_size
 from data.model.storage import get_layer_path
 from data.model.user import get_user
-from data.registry_model.quota import run_backfill
+from data.registry_model.quota import (
+    calculate_registry_size,
+    get_registry_size,
+    run_backfill,
+    sum_registry_size,
+)
 from digest.digest_tools import sha256_digest
 from image.docker.schema2.manifest import DockerSchema2ManifestBuilder
 from test.fixtures import *
@@ -105,6 +110,12 @@ class TestQuota:
                 BLOB2
             ) + len(BLOB3)
             assert get_repository_size(self.repo2) == 0
+
+    def test_calculate_registry_size(self, initialized_db):
+        calculate_registry_size()
+        registry_size = get_registry_size()
+        assert registry_size is not None
+        assert registry_size.size_bytes == sum_registry_size()
 
 
 def create_manifest_for_testing(repository, blobs):

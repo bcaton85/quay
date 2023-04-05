@@ -49,6 +49,7 @@ def registry_services():
         "securityscanningnotificationworker": {"autostart": "true"},
         "config-editor": {"autostart": "false"},
         "quotatotalworker": {"autostart": "true"},
+        "quotaregistrysizeworker": {"autostart": "true"},
     }
 
 
