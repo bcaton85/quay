@@ -8,6 +8,7 @@ export default function Alerts(){
     return (
     <AlertGroup isToast isLiveRegion>
         {alerts.map(alert=><Alert
+            isExpandable={alert.message != null}
             variant={alert.variant}
             title={alert.title}
             actionClose={
@@ -16,7 +17,9 @@ export default function Alerts(){
             />
             }
             key={alert.key}
-        />)}
+        >
+            {alert.message}
+        </Alert>)}
     </AlertGroup>
     )
 }
