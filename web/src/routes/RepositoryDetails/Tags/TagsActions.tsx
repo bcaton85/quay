@@ -1,12 +1,14 @@
-import { Dropdown, DropdownItem, KebabToggle } from '@patternfly/react-core';
+import { Dropdown, DropdownItem, DropdownPosition, KebabToggle } from '@patternfly/react-core';
 import { useState } from 'react';
 import AddTagModal from './TagsActionsAddTagModal';
 import EditLabelsModal from './TagsActionsLabelsModal';
+import EditExpirationModal from './TagsActionsEditExpirationModal';
 
 export default function TagActions(props: TagActionsProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isAddTagModalOpen, setIsAddTagModalOpen] = useState(false);
     const [isEditLabelsModalOpen, setIsEditLabelsModalOpen] = useState(false);
+    const [isEditExpirationModalOpen, setIsEditExpirationModalOpen] = useState(false);
 
     const dropdownItems = [
         <DropdownItem 
@@ -27,6 +29,15 @@ export default function TagActions(props: TagActionsProps) {
         >
             Edit labels
         </DropdownItem>,
+        <DropdownItem 
+            key="edit-expiration-action"
+            onClick={() => {
+                setIsOpen(false);
+                setIsEditExpirationModalOpen(true);
+            }}
+        >
+            Change expiration
+        </DropdownItem>,
     ];
   
     return (
@@ -36,6 +47,7 @@ export default function TagActions(props: TagActionsProps) {
         isOpen={isOpen}
         isPlain
         dropdownItems={dropdownItems}
+        position={DropdownPosition.right}
         />
         <AddTagModal
             org={props.org}
@@ -52,6 +64,15 @@ export default function TagActions(props: TagActionsProps) {
             isOpen={isEditLabelsModalOpen}
             setIsOpen={setIsEditLabelsModalOpen}
         />
+        <EditExpirationModal
+            org={props.org}
+            repo={props.repo}
+            isOpen={isEditExpirationModalOpen}
+            setIsOpen={setIsEditExpirationModalOpen}
+            tags={props.tags}
+            expiration={props.expiration}
+            loadTags={props.loadTags}
+        />
     </>
     );
 }
@@ -59,6 +80,8 @@ export default function TagActions(props: TagActionsProps) {
 interface TagActionsProps {
     org: string;
     repo: string;
+    tags: string[];
+    expiration: string;
     manifest: string;
     loadTags: () => void;
 }
