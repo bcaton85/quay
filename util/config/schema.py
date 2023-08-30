@@ -1394,5 +1394,10 @@ CONFIG_SCHEMA = {
             "description": "Enable customizing of terms of service for on-prem installations",
             "x-example": "https://quay.io/tos",
         },
+        "FEATURE_AUTO_PRUNE": {
+            "type": "boolean",
+            "description": "Enable functionality related to the auto-pruning of tags",
+            "x-example": False,
+        },
     },
 }
