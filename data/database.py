@@ -2005,6 +2005,24 @@ class OrganizationRhSkus(BaseModel):
     )
 
 
+class NamespaceAutoPrunePolicy(BaseModel):
+    """
+    TODO: Make sure these data types are correct
+    """
+    uuid = CharField(default=uuid_generator, max_length=36, index=True)
+    namespace_id = ForeignKeyField(User)
+    policy = JSONField()
+
+
+class AutoPruneTaskStatus(BaseModel):
+    """
+    TODO: Make sure these data types are correct
+    """
+    namespace_id = ForeignKeyField(User)
+    last_ran_ms = BigIntegerField()
+    status = TextField()
+
+
 # Defines a map from full-length index names to the legacy names used in our code
 # to meet length restrictions.
 LEGACY_INDEX_MAP = {
