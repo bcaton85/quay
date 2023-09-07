@@ -2010,7 +2010,7 @@ class NamespaceAutoPrunePolicy(BaseModel):
     TODO: Make sure these data types are correct
     """
     uuid = CharField(default=uuid_generator, max_length=36, index=True)
-    namespace_id = ForeignKeyField(User)
+    namespace = QuayUserField(index=True)
     policy = JSONField()
 
 
@@ -2018,7 +2018,7 @@ class AutoPruneTaskStatus(BaseModel):
     """
     TODO: Make sure these data types are correct
     """
-    namespace_id = ForeignKeyField(User)
+    namespace = QuayUserField(index=True)
     last_ran_ms = BigIntegerField()
     status = TextField()
 

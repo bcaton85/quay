@@ -1,14 +1,14 @@
 """“autopruning”
 
 Revision ID: 222debc16e18
-Revises: a0fc06d604a4
+Revises: b82361fba1cd
 Create Date: 2023-08-15 15:46:50.280955
 
 """
 
 # revision identifiers, used by Alembic.
 revision = '222debc16e18'
-down_revision = 'a0fc06d604a4'
+down_revision = 'b82361fba1cd'
 
 import sqlalchemy as sa
 
