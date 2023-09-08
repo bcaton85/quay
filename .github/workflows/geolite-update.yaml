@@ -1,10 +1,26 @@
-name: Update GeoLite2 database
-on: ['push']
-  # workflow_dispatch:
+name: Update GeoLite2 Database
+on:
+  workflow_dispatch:
 jobs:
   update-geolite2-if-changed:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - run: |
-          echo 'success'
+      - shell: bash
+        env:
+          MAXMIND_LICENSE_KEY: ${{ secrets.MAXMIND_LICENSE_KEY }}
+        run: |
+            #!/bin/bash
+            set -eo pipefail
+            DATE=$(date +%F_%H-%M-%S)
+            BRANCH_NAME=geolite2-update-$DATE
+            git checkout -b $BRANCH_NAME
+            curl "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country&license_key=${MAXMIND_LICENSE_KEY}&suffix=tar.gz" --output /tmp/geolite2-country.tar.gz
+            mkdir /tmp/dest
+            tar -xzf /tmp/geolite2-country.tar.gz -C /tmp/dest
+            mv /tmp/dest/*/GeoLite2-Country.mmdb util/ipresolver/GeoLite2-Country.mmdb
+            git add util/ipresolver/GeoLite2-Country.mmdb
+            git commit -m "Update GeoLite2 database"
+            git push origin $BRANCH_NAME
+            gh pr create -B master -H $BRANCH_NAME --title "Update GeoLite2 database $DATE" --body 'Updating GeoLite2 database to latest version. PR created automatically by the Update GeoLite2 Database GitHub action.'
+
