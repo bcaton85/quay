@@ -1,6 +1,5 @@
 name: Update GeoLite2 Database
-on:
-  workflow_dispatch:
+on: ['push']
 jobs:
   update-geolite2-if-changed:
     runs-on: ubuntu-latest
