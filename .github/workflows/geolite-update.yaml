@@ -19,6 +19,8 @@ jobs:
             mkdir /tmp/dest
             tar -xzf /tmp/geolite2-country.tar.gz -C /tmp/dest
             mv /tmp/dest/*/GeoLite2-Country.mmdb util/ipresolver/GeoLite2-Country.mmdb
+            git config user.email "runner@redhat.com"
+            git config user.name "runner"
             git add util/ipresolver/GeoLite2-Country.mmdb
             git commit -m "Update GeoLite2 database"
             git remote -v
