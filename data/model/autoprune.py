@@ -15,6 +15,7 @@ from enum import Enum
 from peewee import SQL
 
 from util.timedeltastring import convert_to_timedelta
+logger = logging.getLogger(__name__)
 
 logger = logging.getLogger(__name__)
 REPOS_BATCH_SIZE = 100
