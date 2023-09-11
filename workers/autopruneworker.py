@@ -4,6 +4,8 @@ import time
 import features
 
 from app import app
+from data.database import UseThenDisconnect
+from data.model.autoprune import *
 from workers.gunicorn_worker import GunicornWorker
 from workers.worker import Worker
 from util.log import logfile_path
@@ -21,6 +23,39 @@ class AutoPruneWorker(Worker):
     def prune(self):
         # TODO: add prune logic here
         logger.info("starting auto prune logic")
+        with UseThenDisconnect(app.config):
+            logger.debug("in UseThenDisconnect")
+            # TODO: investigate SKIP LOCK FOR UPDATE
+            autoprune_task = fetch_namespaceid_autoprune_task()
+            while autoprune_task is not None:
+                print("autoprune_task id", autoprune_task.id)
+
+                policies = get_namespace_autoprune_policies_by_id(3234)
+                print("got autoprune policies as", policies)
+                if not policies:
+                    # delete_autoprune_task() --> ?
+                    # print("Delete autoprune task")
+                    continue
+                # delete entry from autoprunetask table
+
+                execute_namespace_polices(policies)
+                # execute namespace policies
+
+                # fetch repository policies from repositoryautoprunepolicy table
+
+                # execute repository policies
+
+                # delete entry from autoprune table
+
+                # if not policies:
+                #     # fetch repository policies from repositoryautoprunepolicy table
+                #     pass
+                print("policies", policies)
+                autoprune_task = fetch_namespaceid_autoprune_task()
+
+            logger.infor("Got no autoprune task. Exiting autoprune worker")
+            return
+
 
 def create_gunicorn_worker():
     worker = GunicornWorker(__name__, app, AutoPruneWorker(), features.AUTO_PRUNE)
