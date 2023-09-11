@@ -23,8 +23,6 @@ jobs:
             git config user.name "runner"
             git add util/ipresolver/GeoLite2-Country.mmdb
             git commit -m "Update GeoLite2 database"
-            git remote -v
-            git log --pretty=format:"%h%x09%an%x09%ad%x09%s"
             git push origin $BRANCH_NAME
-            # gh pr create -B master -H $BRANCH_NAME --title "Update GeoLite2 database $DATE" --body 'Updating GeoLite2 database to latest version. PR created automatically by the Update GeoLite2 Database GitHub action.'
+            gh pr create -B master -H $BRANCH_NAME --title "Update GeoLite2 database $DATE" --body 'Updating GeoLite2 database to latest version. PR created automatically by the Update GeoLite2 Database GitHub action.'
 
