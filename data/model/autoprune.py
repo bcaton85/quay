@@ -7,6 +7,7 @@ from data.model import db_transaction
 from enum import Enum
 
 from util.timedeltastring import convert_to_timedelta
+
 logger = logging.getLogger(__name__)
 
 class AutoPruneMethod(Enum):
@@ -64,9 +65,8 @@ def get_namespace_autoprune_policies_by_id(namespace_id):
     """
     try:
         query = (NamespaceAutoPrunePolicyTable.select(NamespaceAutoPrunePolicyTable)
-            .join(User)
             .where(
-                User.id == namespace_id,
+                NamespaceAutoPrunePolicyTable.namespace == namespace_id,
             ))
         return [ NamespaceAutoPrunePolicy(row) for row in query ]
     except NamespaceAutoPrunePolicyTable.DoesNotExist:
@@ -151,34 +151,13 @@ def namespace_has_autoprune_task(namespace_id):
             .where(AutoPruneTaskStatus.namespace==namespace_id)
             .exists())
 
-
-def fetch_ordered_autoprune_task_by_last_ran():
-    try:
-        return (AutoPruneTaskStatus.select()
-                .where(AutoPruneTaskStatus.status == "queued")
-                .order_by(AutoPruneTaskStatus.last_ran_ms.asc(), AutoPruneTaskStatus.id)
-                .get())
-    except AutoPruneTaskStatus.DoesNotExist:
-        print("Returning no task that is currently queued")
-        return None
-
-def fetch_never_ran_ordered_autoprune_task():
-    try:
-        return (AutoPruneTaskStatus.select()
-                .where(AutoPruneTaskStatus.last_ran_ms.is_null(True))
-                .order_by(AutoPruneTaskStatus.id)
-                .get())
-    except AutoPruneTaskStatus.DoesNotExist:
-        print("Returning no task that was never ran")
-        return None
-
-
 def update_autoprune_task_to_in_progress(task):
     """
         Using optimistic locking to ensure the task is not picked by another worker
         https://docs.peewee-orm.com/en/latest/peewee/hacks.html#optimistic-locking
     """
-    query = AutoPruneTaskStatus.update(status='in progress', last_ran_ms=time.time_ns()).where(
+    # TODO: need to use skip locked here
+    query = AutoPruneTaskStatus.update(status='in progress', last_ran_ms=int(time.time() * 1000)).where(
             (AutoPruneTaskStatus.status == "queued") &(AutoPruneTaskStatus.id == task.id))
 
     if query.execute() == 0:
@@ -187,25 +166,33 @@ def update_autoprune_task_to_in_progress(task):
     return True
 
 
-def fetch_namespaceid_autoprune_task():
+def fetch_ordered_autoprune_tasks_for_batchsize(batch_size):
     """
-    Get the auto prune task prioritized by last_ran_ms = None followed by desc order of last_ran_ms
+    Get the auto prune task prioritized by last_ran_ms = None followed by asc order of last_ran_ms
     """
-    logger.debug("in fetch_autoprune_task")
-    next_task = fetch_never_ran_ordered_autoprune_task() or fetch_ordered_autoprune_task_by_last_ran()
-    if not next_task:
+    try:
+        query = (AutoPruneTaskStatus.select()
+                .order_by(AutoPruneTaskStatus.last_ran_ms.asc(nulls='first'), AutoPruneTaskStatus.id)
+                .limit(batch_size))
+        return [row for row in query]
+    except AutoPruneTaskStatus.DoesNotExist:
+        return []
+
+
+def fetch_batched_autoprune_tasks(batch_size):
+    batched_tasks = fetch_ordered_autoprune_tasks_for_batchsize(batch_size)
+    if not len(batched_tasks):
         return None
 
-    if update_autoprune_task_to_in_progress(next_task):
-        return next_task
+    list(map(lambda x: update_autoprune_task_to_in_progress(x), batched_tasks))
+    return batched_tasks
 
-    return None
 
 def delete_autoprune_task(task):
     with db_transaction():
         try:
             (AutoPruneTaskStatus.delete()
-             .where(AutoPruneTaskStatus.id==task.id, AutoPruneTaskStatus.namespace_id==task.namespace_id, AutoPruneTaskStatus.status=="in progess")
+             .where(AutoPruneTaskStatus.id==task.id, AutoPruneTaskStatus.namespace_id==task.namespace_id)
              .execute())
             return True
         except AutoPruneTaskStatus.DoesNotExist:

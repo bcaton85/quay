@@ -13,7 +13,7 @@ from util.log import logfile_path
 
 logger = logging.getLogger(__name__)
 POLL_PERIOD = app.config.get("AUTO_PRUNING_POLL_PERIOD", 30)
-
+BATCH_SIZE = app.config.get("AUTO_PRUNING_BATCH_SIZE", 10)
 
 class AutoPruneWorker(Worker):
     def __init__(self):
@@ -25,18 +25,15 @@ class AutoPruneWorker(Worker):
         logger.info("starting auto prune logic")
         with UseThenDisconnect(app.config):
             logger.debug("in UseThenDisconnect")
-            # TODO: investigate SKIP LOCK FOR UPDATE
-            autoprune_task = fetch_namespaceid_autoprune_task()
-            while autoprune_task is not None:
-                print("autoprune_task id", autoprune_task.id)
-
-                policies = get_namespace_autoprune_policies_by_id(3234)
+            autoprune_tasks = fetch_batched_autoprune_tasks(BATCH_SIZE)
+            print("autoprune_tasks autoprune_tasks", autoprune_tasks)
+            for autoprune_task in autoprune_tasks:
+                policies = get_namespace_autoprune_policies_by_id(autoprune_task.id)
                 print("got autoprune policies as", policies)
                 if not policies:
-                    # delete_autoprune_task() --> ?
-                    # print("Delete autoprune task")
+                    delete_autoprune_task(autoprune_task)
+                    print("Deleted autoprune task", autoprune_task.id)
                     continue
-                # delete entry from autoprunetask table
 
                 execute_namespace_polices(policies)
                 # execute namespace policies
@@ -51,9 +48,6 @@ class AutoPruneWorker(Worker):
                 #     # fetch repository policies from repositoryautoprunepolicy table
                 #     pass
                 print("policies", policies)
-                autoprune_task = fetch_namespaceid_autoprune_task()
-
-            logger.infor("Got no autoprune task. Exiting autoprune worker")
             return
 
 
