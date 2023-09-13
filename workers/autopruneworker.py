@@ -26,7 +26,8 @@ class AutoPruneWorker(Worker):
         autoprune_tasks = fetch_batched_autoprune_tasks(BATCH_SIZE)
 
         for autoprune_task in autoprune_tasks:
-            policies = get_namespace_autoprune_policies_by_id(autoprune_task.id)
+            policies = get_namespace_autoprune_policies_by_id(autoprune_task.namespace_id)
+
             if not policies:
                 # When implementing repo policies, fetch repo policies before deleting the task
                 delete_autoprune_task(autoprune_task)
