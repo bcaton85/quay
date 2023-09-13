@@ -41,9 +41,9 @@ class NamespaceAutoPrunePolicy:
 
 
 def valid_value(method, value):
-    if method == AutoPruneMethod.NUMBER_OF_TAGS and not isinstance(value, int):
+    if method == AutoPruneMethod.NUMBER_OF_TAGS.value and not isinstance(value, int):
         return False
-    elif method == AutoPruneMethod.CREATION_DATE:
+    elif method == AutoPruneMethod.CREATION_DATE.value:
         if not isinstance(value, str):
             return False
 
@@ -180,20 +180,10 @@ def namespace_has_autoprune_task(namespace_id):
     )
 
 
-def update_autoprune_task_to_in_progress(task):
-    """
-    Using optimistic locking to ensure the task is not picked by another worker
-    https://docs.peewee-orm.com/en/latest/peewee/hacks.html#optimistic-locking
-    """
-    # TODO: need to use skip locked here
-    query = AutoPruneTaskStatus.update(
-        status="in progress", last_ran_ms=get_epoch_timestamp_ms()
-    ).where(AutoPruneTaskStatus.id == task.id)
-
-    if query.execute() == 0:
-        print("another worker picked up the task")
-        return False
-    return True
+def update_autoprune_task(task, task_status):
+    AutoPruneTaskStatus.update(status=task_status, last_ran_ms=get_epoch_timestamp_ms()).where(
+        AutoPruneTaskStatus.id == task.id
+    ).execute()
 
 
 def fetch_ordered_autoprune_tasks_for_batchsize(batch_size):
@@ -205,6 +195,7 @@ def fetch_ordered_autoprune_tasks_for_batchsize(batch_size):
             AutoPruneTaskStatus.select()
             .order_by(AutoPruneTaskStatus.last_ran_ms.asc(nulls="first"), AutoPruneTaskStatus.id)
             .limit(batch_size)
+            .for_update("FOR UPDATE SKIP LOCKED")
         )
         return [row for row in query]
     except AutoPruneTaskStatus.DoesNotExist:
@@ -215,8 +206,6 @@ def fetch_batched_autoprune_tasks(batch_size):
     batched_tasks = fetch_ordered_autoprune_tasks_for_batchsize(batch_size)
     if not len(batched_tasks):
         return None
-
-    list(map(lambda x: update_autoprune_task_to_in_progress(x), batched_tasks))
     return batched_tasks
 
 
@@ -237,33 +226,38 @@ def delete_autoprune_task(task):
 
 
 def prune_repo_by_number_of_tags(repo_id, policy_config):
-    if policy_config.get("method", None) != "number_of_tags" or not policy_config.get("value", ""):
-        return
+    if policy_config.get("method", None) != AutoPruneMethod.NUMBER_OF_TAGS.value or not valid_value(
+        policy_config.get("method"), policy_config.get("value")
+    ):
+        raise KeyError("Unsupported policy config provided", policy_config)
 
     tags = oci.tag.fetch_autoprune_repo_tags_by_number(repo_id, int(policy_config["value"]))
+
     for tag in tags:
+        # TODO: Replace with audit logs here
+        logger.info(f"Deleting tag: {tag.name} from repo_id: {repo_id}")
         oci.tag.delete_tag(repo_id, tag.name)
 
 
 def prune_repo_by_creation_date(repo_id, policy_config):
-    if (
-        policy_config.get("method", None) != "creation_date"
-        or not policy_config.get("value", "").strip()
+    if policy_config.get("method", None) != AutoPruneMethod.CREATION_DATE.value or not valid_value(
+        policy_config.get("method"), policy_config.get("value")
     ):
-        return
+        raise KeyError("Unsupported policy config provided", policy_config)
 
-    val = int(policy_config["value"].replace("d", ""))
-    td = datetime.timedelta(days=val)
-    days_ms = int(td.total_seconds() * 1000)
-    tags = oci.tag.fetch_autoprune_repo_tags_older_than_ms(repo_id, days_ms)
+    time_ms = int(convert_to_timedelta(policy_config["value"]).total_seconds() * 1000)
+    tags = oci.tag.fetch_autoprune_repo_tags_older_than_ms(repo_id, time_ms)
+
     for tag in tags:
+        # TODO: Replace with audit logs here
+        logger.info(f"Deleting tag: {tag.name} from repo_id: {repo_id}")
         oci.tag.delete_tag(repo_id, tag.name)
 
 
 def execute_poilcy_on_repo(policy, repo):
     poilicy_to_func_map = {
-        "number_of_tags": prune_repo_by_number_of_tags,
-        "creation_date": prune_repo_by_creation_date,
+        AutoPruneMethod.NUMBER_OF_TAGS.value: prune_repo_by_number_of_tags,
+        AutoPruneMethod.CREATION_DATE.value: prune_repo_by_creation_date,
     }
 
     if poilicy_to_func_map.get(policy.method, None) is None:
