@@ -85,7 +85,7 @@ export default function Organization() {
     },
     {
       name: 'Settings',
-      component: <Settings organizationName={organizationName} />,
+      component: <Settings organizationName={organizationName} isUserOrganization={isUserOrganization} />,
       visible: fetchTabVisibility('Settings'),
     },
   ];

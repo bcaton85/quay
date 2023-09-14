@@ -599,3 +599,4 @@ import endpoints.api.tag
 import endpoints.api.team
 import endpoints.api.trigger
 import endpoints.api.user
+import endpoints.api.policy
