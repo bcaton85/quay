@@ -14,7 +14,6 @@ from data.model import db_transaction, modelutil, oci
 from enum import Enum
 
 from util.timedeltastring import convert_to_timedelta
-logger = logging.getLogger(__name__)
 
 logger = logging.getLogger(__name__)
 PAGINATE_SIZE = 50
