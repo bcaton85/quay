@@ -24,6 +24,8 @@ class AutoPruneWorker(Worker):
     def prune(self):
         logger.info("starting auto prune logic")
         autoprune_tasks = fetch_batched_autoprune_tasks(BATCH_SIZE)
+        if not autoprune_tasks:
+            return
 
         for autoprune_task in autoprune_tasks:
             policies = get_namespace_autoprune_policies_by_id(autoprune_task.namespace_id)

@@ -7,18 +7,17 @@ from data.database import (
     User,
     Repository,
     RepositoryState,
+    DeletedNamespace,
     get_epoch_timestamp_ms,
 )
-from data.model import db_transaction
-from data.model import oci
+from data.model import db_transaction, modelutil, oci
 from enum import Enum
-from peewee import SQL
 
 from util.timedeltastring import convert_to_timedelta
 logger = logging.getLogger(__name__)
 
 logger = logging.getLogger(__name__)
-REPOS_BATCH_SIZE = 100
+PAGINATE_SIZE = 50
 
 
 class AutoPruneMethod(Enum):
@@ -42,9 +41,9 @@ class NamespaceAutoPrunePolicy:
 
 
 def valid_value(method, value):
-    if method == AutoPruneMethod.NUMBER_OF_TAGS.value and not isinstance(value, int):
+    if method == AutoPruneMethod.NUMBER_OF_TAGS and not isinstance(value, int):
         return False
-    elif method == AutoPruneMethod.CREATION_DATE.value:
+    elif method == AutoPruneMethod.CREATION_DATE:
         if not isinstance(value, str):
             return False
 
@@ -194,6 +193,11 @@ def fetch_ordered_autoprune_tasks_for_batchsize(batch_size):
     try:
         query = (
             AutoPruneTaskStatus.select()
+            .where(
+                AutoPruneTaskStatus.namespace.not_in(
+                    DeletedNamespace.select(DeletedNamespace.namespace)
+                )
+            )
             .order_by(AutoPruneTaskStatus.last_ran_ms.asc(nulls="first"), AutoPruneTaskStatus.id)
             .limit(batch_size)
             .for_update("FOR UPDATE SKIP LOCKED")
@@ -227,51 +231,78 @@ def delete_autoprune_task(task):
 
 
 def prune_repo_by_number_of_tags(repo_id, policy_config):
-    if policy_config.get("method", None) != AutoPruneMethod.NUMBER_OF_TAGS.value or not valid_value(
-        policy_config.get("method"), policy_config.get("value")
+    logger.info(
+        f"Executing prune_repo_by_number_of_tags for repo: {repo_id} with policy config: {policy_config}"
+    )
+    policy_method = policy_config.get("method", None)
+
+    if policy_method != AutoPruneMethod.NUMBER_OF_TAGS.value or not valid_value(
+        AutoPruneMethod(policy_method), policy_config.get("value")
     ):
         raise KeyError("Unsupported policy config provided", policy_config)
 
-    tags = oci.tag.fetch_autoprune_repo_tags_by_number(repo_id, int(policy_config["value"]))
+    page_token = None
+    while True:
+        tags, page_token = oci.tag.fetch_paginated_autoprune_repo_tags_by_number(
+            repo_id, int(policy_config["value"]), page_token, PAGINATE_SIZE
+        )
+        tags_list = [row for row in tags]
 
-    for tag in tags:
-        # TODO: Replace with audit logs here
-        logger.info(f"Deleting tag: {tag.name} from repo_id: {repo_id}")
-        oci.tag.delete_tag(repo_id, tag.name)
+        for tag in tags_list:
+            # TODO: Replace with audit logs here
+            logger.info(f"Deleting tag: {tag.name} from repo_id: {repo_id}")
+            oci.tag.delete_tag(repo_id, tag.name)
+
+        if page_token is None:
+            break
 
 
 def prune_repo_by_creation_date(repo_id, policy_config):
-    if policy_config.get("method", None) != AutoPruneMethod.CREATION_DATE.value or not valid_value(
-        policy_config.get("method"), policy_config.get("value")
+    logger.info(
+        f"Executing prune_repo_by_creation_date for repo: {repo_id} with policy config: {policy_config}"
+    )
+    policy_method = policy_config.get("method", None)
+
+    if policy_method != AutoPruneMethod.CREATION_DATE.value or not valid_value(
+        AutoPruneMethod(policy_method), policy_config.get("value")
     ):
         raise KeyError("Unsupported policy config provided", policy_config)
 
     time_ms = int(convert_to_timedelta(policy_config["value"]).total_seconds() * 1000)
-    tags = oci.tag.fetch_autoprune_repo_tags_older_than_ms(repo_id, time_ms)
 
-    for tag in tags:
-        # TODO: Replace with audit logs here
-        logger.info(f"Deleting tag: {tag.name} from repo_id: {repo_id}")
-        oci.tag.delete_tag(repo_id, tag.name)
+    page_token = None
+    while True:
+        tags, page_token = oci.tag.fetch_paginated_autoprune_repo_tags_older_than_ms(
+            repo_id, time_ms, page_token, PAGINATE_SIZE
+        )
+        tags_list = [row for row in tags]
+
+        for tag in tags_list:
+            # TODO: Replace with audit logs here
+            logger.info(f"Deleting tag: {tag.name} from repo_id: {repo_id}")
+            oci.tag.delete_tag(repo_id, tag.name)
+
+        if page_token is None:
+            break
 
 
 def execute_poilcy_on_repo(policy, repo):
-    poilicy_to_func_map = {
+    policy_to_func_map = {
         AutoPruneMethod.NUMBER_OF_TAGS.value: prune_repo_by_number_of_tags,
         AutoPruneMethod.CREATION_DATE.value: prune_repo_by_creation_date,
     }
 
-    if poilicy_to_func_map.get(policy.method, None) is None:
+    if policy_to_func_map.get(policy.method, None) is None:
         raise KeyError("Unsupported policy provided", policy.method)
 
-    poilicy_to_func_map[policy.method](repo, policy.config)
+    policy_to_func_map[policy.method](repo, policy.config)
 
 
 def execute_policies_for_repo(policies, repo):
     list(map(lambda policy: execute_poilcy_on_repo(policy, repo), policies))
 
 
-def get_repositories_for_namespace(namespace_id):
+def get_paginated_repositories_for_namespace(namespace_id, page_token=None):
     query = Repository.select(
         Repository.name,
         Repository.id,
@@ -282,15 +313,26 @@ def get_repositories_for_namespace(namespace_id):
         Repository.state != RepositoryState.MARKED_FOR_DELETION,
         Repository.namespace_user == namespace_id,
     )
-    # is there a use to limit repositories here?
-    # .limit(REPOS_BATCH_SIZE).order_by(SQL("rid"))
-    return [row for row in query]
+    repos, next_page_token = modelutil.paginate(
+        query,
+        Repository,
+        page_token=page_token,
+        limit=PAGINATE_SIZE,
+    )
+    return repos, next_page_token
 
 
 def execute_namespace_polices(policies, namespace_id):
     if not policies:
         return
-    repo_list = get_repositories_for_namespace(namespace_id)
+    page_token = None
 
-    # When implementing repo policies, fetch repo policies and add it to the policies list here
-    list(map(lambda repo: execute_policies_for_repo(policies, repo), repo_list))
+    while True:
+        repos, page_token = get_paginated_repositories_for_namespace(namespace_id, page_token)
+        repo_list = [row for row in repos]
+
+        # When implementing repo policies, fetch repo policies and add it to the policies list here
+        list(map(lambda repo: execute_policies_for_repo(policies, repo), repo_list))
+
+        if page_token is None:
+            break
