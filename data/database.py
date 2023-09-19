@@ -2019,7 +2019,7 @@ class AutoPruneTaskStatus(BaseModel):
     TODO: Make sure these data types are correct
     """
     namespace = QuayUserField(index=True)
-    last_ran_ms = BigIntegerField()
+    last_ran_ms = BigIntegerField(null=True)
     status = TextField()
 
 
