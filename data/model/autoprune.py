@@ -189,21 +189,24 @@ def fetch_ordered_autoprune_tasks_for_batchsize(batch_size):
     """
     Get the auto prune task prioritized by last_ran_ms = None followed by asc order of last_ran_ms
     """
-    try:
-        query = (
-            AutoPruneTaskStatus.select()
-            .where(
-                AutoPruneTaskStatus.namespace.not_in(
-                    DeletedNamespace.select(DeletedNamespace.namespace)
+    with db_transaction():
+        try:
+            # TODO: Can reuse exisiting db_for_update for create a new db_object for 
+            # `for update skip locked` to account for different drivers
+            query = (
+                AutoPruneTaskStatus.select()
+                .where(
+                    AutoPruneTaskStatus.namespace.not_in(
+                        DeletedNamespace.select(DeletedNamespace.namespace)
+                    )
                 )
+                .order_by(AutoPruneTaskStatus.last_ran_ms.asc(nulls="first"), AutoPruneTaskStatus.id)
+                .limit(batch_size)
+                .for_update("FOR UPDATE SKIP LOCKED")
             )
-            .order_by(AutoPruneTaskStatus.last_ran_ms.asc(nulls="first"), AutoPruneTaskStatus.id)
-            .limit(batch_size)
-            .for_update("FOR UPDATE SKIP LOCKED")
-        )
-        return [row for row in query]
-    except AutoPruneTaskStatus.DoesNotExist:
-        return []
+            return [row for row in query]
+        except AutoPruneTaskStatus.DoesNotExist:
+            return []
 
 
 def fetch_batched_autoprune_tasks(batch_size):
