@@ -28,17 +28,20 @@ class AutoPruneWorker(Worker):
             return
 
         for autoprune_task in autoprune_tasks:
-            policies = get_namespace_autoprune_policies_by_id(autoprune_task.namespace_id)
+            try:
+                policies = get_namespace_autoprune_policies_by_id(autoprune_task.namespace_id)
 
-            if not policies:
-                # When implementing repo policies, fetch repo policies before deleting the task
-                delete_autoprune_task(autoprune_task)
-                continue
+                if not policies:
+                    # When implementing repo policies, fetch repo policies before deleting the task
+                    delete_autoprune_task(autoprune_task)
+                    continue
 
-            execute_namespace_polices(policies, autoprune_task.namespace)
+                execute_namespace_polices(policies, autoprune_task.namespace)
 
-            # TODO: Fetch status from above function, hardcoded to success for now.
-            update_autoprune_task(autoprune_task, task_status="success")
+                # TODO: Fetch status from above function, hardcoded to success for now.
+                update_autoprune_task(autoprune_task, task_status="success")
+            except Exception as err:
+                update_autoprune_task(autoprune_task, task_status=str(err))
 
         return
 

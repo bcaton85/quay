@@ -82,6 +82,10 @@ def get_namespace_autoprune_policies_by_id(namespace_id):
         return [NamespaceAutoPrunePolicy(row) for row in query]
     except NamespaceAutoPrunePolicyTable.DoesNotExist:
         return []
+    except Exception as err:
+        raise Exception(
+            f"Error fetching autoprune policies for namespace id: {namespace_id} with error as: {str(err)}"
+        )
 
 
 def get_namespace_autoprune_policy(orgname, uuid):
@@ -191,7 +195,7 @@ def fetch_ordered_autoprune_tasks_for_batchsize(batch_size):
     """
     with db_transaction():
         try:
-            # TODO: Can reuse exisiting db_for_update for create a new db_object for 
+            # TODO: Can reuse exisiting db_for_update for create a new db_object for
             # `for update skip locked` to account for different drivers
             query = (
                 AutoPruneTaskStatus.select()
@@ -200,7 +204,9 @@ def fetch_ordered_autoprune_tasks_for_batchsize(batch_size):
                         DeletedNamespace.select(DeletedNamespace.namespace)
                     )
                 )
-                .order_by(AutoPruneTaskStatus.last_ran_ms.asc(nulls="first"), AutoPruneTaskStatus.id)
+                .order_by(
+                    AutoPruneTaskStatus.last_ran_ms.asc(nulls="first"), AutoPruneTaskStatus.id
+                )
                 .limit(batch_size)
                 .for_update("FOR UPDATE SKIP LOCKED")
             )
@@ -230,12 +236,13 @@ def delete_autoprune_task(task):
             return True
         except AutoPruneTaskStatus.DoesNotExist:
             return None
+        except Exception as err:
+            raise Exception(
+                f"Error deleting autoprune task for namespace id: {task.namespace_id} with error as: {str(err)}"
+            )
 
 
 def prune_repo_by_number_of_tags(repo_id, policy_config):
-    logger.info(
-        f"Executing prune_repo_by_number_of_tags for repo: {repo_id} with policy config: {policy_config}"
-    )
     policy_method = policy_config.get("method", None)
 
     if policy_method != AutoPruneMethod.NUMBER_OF_TAGS.value or not valid_value(
@@ -260,9 +267,6 @@ def prune_repo_by_number_of_tags(repo_id, policy_config):
 
 
 def prune_repo_by_creation_date(repo_id, policy_config):
-    logger.info(
-        f"Executing prune_repo_by_creation_date for repo: {repo_id} with policy config: {policy_config}"
-    )
     policy_method = policy_config.get("method", None)
 
     if policy_method != AutoPruneMethod.CREATION_DATE.value or not valid_value(
@@ -280,9 +284,14 @@ def prune_repo_by_creation_date(repo_id, policy_config):
         tags_list = [row for row in tags]
 
         for tag in tags_list:
-            # TODO: Replace with audit logs here
-            logger.info(f"Deleting tag: {tag.name} from repo_id: {repo_id}")
-            oci.tag.delete_tag(repo_id, tag.name)
+            try:
+                # TODO: Replace with audit logs here
+                logger.info(f"Deleting tag: {tag.name} from repo_id: {repo_id}")
+                oci.tag.delete_tag(repo_id, tag.name)
+            except Exception as err:
+                raise Exception(
+                    f"Error deleting tag with name: {tag.name} with repository id: {repo_id} with error as: {str(err)}"
+                )
 
         if page_token is None:
             break
@@ -305,23 +314,28 @@ def execute_policies_for_repo(policies, repo):
 
 
 def get_paginated_repositories_for_namespace(namespace_id, page_token=None):
-    query = Repository.select(
-        Repository.name,
-        Repository.id,
-        Repository.visibility,
-        Repository.kind,
-        Repository.state,
-    ).where(
-        Repository.state != RepositoryState.MARKED_FOR_DELETION,
-        Repository.namespace_user == namespace_id,
-    )
-    repos, next_page_token = modelutil.paginate(
-        query,
-        Repository,
-        page_token=page_token,
-        limit=PAGINATE_SIZE,
-    )
-    return repos, next_page_token
+    try:
+        query = Repository.select(
+            Repository.name,
+            Repository.id,
+            Repository.visibility,
+            Repository.kind,
+            Repository.state,
+        ).where(
+            Repository.state != RepositoryState.MARKED_FOR_DELETION,
+            Repository.namespace_user == namespace_id,
+        )
+        repos, next_page_token = modelutil.paginate(
+            query,
+            Repository,
+            page_token=page_token,
+            limit=PAGINATE_SIZE,
+        )
+        return repos, next_page_token
+    except Exception as err:
+        raise Exception(
+            f"Error fetching paginated repositories for namespace id: {namespace_id} with error as: {str(err)}"
+        )
 
 
 def execute_namespace_polices(policies, namespace_id):

@@ -744,26 +744,31 @@ def fetch_paginated_autoprune_repo_tags_by_number(
     """
     Fetch repository's active tags sorted by creation date & are more than max_tags_allowed
     """
-    now_ms = get_epoch_timestamp_ms()
-    query = (
-        Tag.select()
-        .where(
-            Tag.repository_id == repo_id,
-            (Tag.lifetime_end_ms >> None) | (Tag.lifetime_end_ms > now_ms),
-            Tag.hidden == False,
+    try:
+        now_ms = get_epoch_timestamp_ms()
+        query = (
+            Tag.select()
+            .where(
+                Tag.repository_id == repo_id,
+                (Tag.lifetime_end_ms >> None) | (Tag.lifetime_end_ms > now_ms),
+                Tag.hidden == False,
+            )
+            .order_by(Tag.lifetime_start_ms.desc())
+            .offset(max_tags_allowed)
         )
-        .order_by(Tag.lifetime_start_ms.desc())
-        .offset(max_tags_allowed)
-    )
-    tags, next_page_token = modelutil.paginate(
-        query,
-        Tag,
-        descending=True,
-        page_token=page_token,
-        limit=page_size,
-        sort_field_name="lifetime_start_ms",
-    )
-    return tags, next_page_token
+        tags, next_page_token = modelutil.paginate(
+            query,
+            Tag,
+            descending=True,
+            page_token=page_token,
+            limit=page_size,
+            sort_field_name="lifetime_start_ms",
+        )
+        return tags, next_page_token
+    except Exception as err:
+        raise Exception(
+            f"Error fetching repository tags by number for repository id: {repo_id} with error as: {str(err)}"
+        )
 
 
 def fetch_paginated_autoprune_repo_tags_older_than_ms(
@@ -772,19 +777,24 @@ def fetch_paginated_autoprune_repo_tags_older_than_ms(
     """
     Return repository's active tags older than tag_lifetime_ms
     """
-    now_ms = get_epoch_timestamp_ms()
-    query = Tag.select().where(
-        Tag.repository_id == repo_id,
-        (Tag.lifetime_end_ms >> None) | (Tag.lifetime_end_ms > now_ms),
-        (now_ms - Tag.lifetime_start_ms) > tag_lifetime_ms,
-        Tag.hidden == False,
-    )
-    tags, next_page_token = modelutil.paginate(
-        query,
-        Tag,
-        descending=True,
-        page_token=page_token,
-        limit=page_size,
-        sort_field_name="lifetime_start_ms",
-    )
-    return tags, next_page_token
+    try:
+        now_ms = get_epoch_timestamp_ms()
+        query = Tag.select().where(
+            Tag.repository_id == repo_id,
+            (Tag.lifetime_end_ms >> None) | (Tag.lifetime_end_ms > now_ms),
+            (now_ms - Tag.lifetime_start_ms) > tag_lifetime_ms,
+            Tag.hidden == False,
+        )
+        tags, next_page_token = modelutil.paginate(
+            query,
+            Tag,
+            descending=True,
+            page_token=page_token,
+            limit=page_size,
+            sort_field_name="lifetime_start_ms",
+        )
+        return tags, next_page_token
+    except Exception as err:
+        raise Exception(
+            f"Error fetching repository tags by creation date for repository id: {repo_id} with error as: {str(err)}"
+        )
