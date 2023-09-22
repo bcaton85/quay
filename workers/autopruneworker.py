@@ -4,7 +4,6 @@ import time
 import features
 
 from app import app
-from data.database import UseThenDisconnect
 from data.model.autoprune import *
 from workers.gunicorn_worker import GunicornWorker
 from workers.worker import Worker
@@ -22,15 +21,14 @@ class AutoPruneWorker(Worker):
         self.add_operation(self.prune, POLL_PERIOD)
 
     def prune(self):
-        logger.info("starting auto prune logic")
-        autoprune_tasks = fetch_batched_autoprune_tasks(BATCH_SIZE)
-        if not autoprune_tasks:
-            return
-
-        for autoprune_task in autoprune_tasks:
+        for i in range(BATCH_SIZE):
             try:
-                policies = get_namespace_autoprune_policies_by_id(autoprune_task.namespace_id)
+                autoprune_task = fetch_autoprune_task()
+                print("autoprune_task is", autoprune_task)
+                if not autoprune_task:
+                    return
 
+                policies = get_namespace_autoprune_policies_by_id(autoprune_task.namespace_id)
                 if not policies:
                     # When implementing repo policies, fetch repo policies before deleting the task
                     delete_autoprune_task(autoprune_task)

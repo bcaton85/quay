@@ -9,6 +9,7 @@ from data.database import (
     RepositoryState,
     DeletedNamespace,
     get_epoch_timestamp_ms,
+    db_for_update,
 )
 from data.model import db_transaction, modelutil, oci
 from enum import Enum
@@ -184,12 +185,19 @@ def namespace_has_autoprune_task(namespace_id):
 
 
 def update_autoprune_task(task, task_status):
-    AutoPruneTaskStatus.update(status=task_status, last_ran_ms=get_epoch_timestamp_ms()).where(
-        AutoPruneTaskStatus.id == task.id
-    ).execute()
+    try:
+        task.status = task_status
+        task.last_ran_ms = get_epoch_timestamp_ms()
+        task.save()
+    except AutoPruneTaskStatus.DoesNotExist:
+            return None
+    except Exception as err:
+        raise Exception(
+            f"Error updating autoprune task for namespace id: {task.namespace_id}, task_status: {task_status} with error as: {str(err)}"
+        )
 
 
-def fetch_ordered_autoprune_tasks_for_batchsize(batch_size):
+def fetch_autoprune_task():
     """
     Get the auto prune task prioritized by last_ran_ms = None followed by asc order of last_ran_ms
     """
@@ -197,7 +205,7 @@ def fetch_ordered_autoprune_tasks_for_batchsize(batch_size):
         try:
             # TODO: Can reuse exisiting db_for_update for create a new db_object for
             # `for update skip locked` to account for different drivers
-            query = (
+            return db_for_update(
                 AutoPruneTaskStatus.select()
                 .where(
                     AutoPruneTaskStatus.namespace.not_in(
@@ -207,39 +215,21 @@ def fetch_ordered_autoprune_tasks_for_batchsize(batch_size):
                 .order_by(
                     AutoPruneTaskStatus.last_ran_ms.asc(nulls="first"), AutoPruneTaskStatus.id
                 )
-                .limit(batch_size)
                 .for_update("FOR UPDATE SKIP LOCKED")
-            )
-            return [row for row in query]
+            ).get()
         except AutoPruneTaskStatus.DoesNotExist:
             return []
 
 
-def fetch_batched_autoprune_tasks(batch_size):
-    batched_tasks = fetch_ordered_autoprune_tasks_for_batchsize(batch_size)
-    if not len(batched_tasks):
-        return None
-    return batched_tasks
-
-
 def delete_autoprune_task(task):
-    with db_transaction():
-        try:
-            (
-                AutoPruneTaskStatus.delete()
-                .where(
-                    AutoPruneTaskStatus.id == task.id,
-                    AutoPruneTaskStatus.namespace_id == task.namespace_id,
-                )
-                .execute()
-            )
-            return True
-        except AutoPruneTaskStatus.DoesNotExist:
-            return None
-        except Exception as err:
-            raise Exception(
-                f"Error deleting autoprune task for namespace id: {task.namespace_id} with error as: {str(err)}"
-            )
+    try:
+        task.delete_instance()
+    except AutoPruneTaskStatus.DoesNotExist:
+        return None
+    except Exception as err:
+        raise Exception(
+            f"Error deleting autoprune task for namespace id: {task.namespace_id} with error as: {str(err)}"
+        )
 
 
 def prune_repo_by_number_of_tags(repo_id, policy_config):
