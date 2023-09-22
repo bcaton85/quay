@@ -24,7 +24,6 @@ class AutoPruneWorker(Worker):
         for i in range(BATCH_SIZE):
             try:
                 autoprune_task = fetch_autoprune_task()
-                print("autoprune_task is", autoprune_task)
                 if not autoprune_task:
                     return
 

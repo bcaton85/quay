@@ -203,7 +203,9 @@ def fetch_autoprune_task():
     """
     with db_transaction():
         try:
-            return db_for_update(
+            # TODO: Can reuse exisiting db_for_update for create a new db_object for
+            # `for update skip locked` to account for different drivers
+            return (
                 AutoPruneTaskStatus.select()
                 .where(
                     AutoPruneTaskStatus.namespace.not_in(
@@ -214,7 +216,8 @@ def fetch_autoprune_task():
                     AutoPruneTaskStatus.last_ran_ms.asc(nulls="first"), AutoPruneTaskStatus.id
                 )
                 .for_update("FOR UPDATE SKIP LOCKED")
-            ).get()
+                .get()
+            )
         except AutoPruneTaskStatus.DoesNotExist:
             return []
 
