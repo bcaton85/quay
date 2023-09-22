@@ -4,6 +4,7 @@ import time
 import features
 
 from app import app
+from data.model.autoprune import *
 from workers.gunicorn_worker import GunicornWorker
 from workers.worker import Worker
 from util.log import logfile_path
@@ -11,6 +12,7 @@ from util.log import logfile_path
 
 logger = logging.getLogger(__name__)
 POLL_PERIOD = app.config.get("AUTO_PRUNING_POLL_PERIOD", 30)
+BATCH_SIZE = app.config.get("AUTO_PRUNING_BATCH_SIZE", 10)
 
 
 class AutoPruneWorker(Worker):
@@ -19,8 +21,26 @@ class AutoPruneWorker(Worker):
         self.add_operation(self.prune, POLL_PERIOD)
 
     def prune(self):
-        # TODO: add prune logic here
-        logger.info("starting auto prune logic")
+        for i in range(BATCH_SIZE):
+            try:
+                autoprune_task = fetch_autoprune_task()
+                if not autoprune_task:
+                    return
+
+                policies = get_namespace_autoprune_policies_by_id(autoprune_task.namespace_id)
+                if not policies:
+                    # When implementing repo policies, fetch repo policies before deleting the task
+                    delete_autoprune_task(autoprune_task)
+                    continue
+
+                execute_namespace_polices(policies, autoprune_task.namespace)
+
+                update_autoprune_task(autoprune_task, task_status="success")
+            except Exception as err:
+                update_autoprune_task(autoprune_task, task_status=str(err))
+
+        return
+
 
 def create_gunicorn_worker():
     worker = GunicornWorker(__name__, app, AutoPruneWorker(), features.AUTO_PRUNE)
