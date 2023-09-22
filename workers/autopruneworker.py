@@ -36,7 +36,6 @@ class AutoPruneWorker(Worker):
 
                 execute_namespace_polices(policies, autoprune_task.namespace)
 
-                # TODO: Fetch status from above function, hardcoded to success for now.
                 update_autoprune_task(autoprune_task, task_status="success")
             except Exception as err:
                 update_autoprune_task(autoprune_task, task_status=str(err))

@@ -203,8 +203,6 @@ def fetch_autoprune_task():
     """
     with db_transaction():
         try:
-            # TODO: Can reuse exisiting db_for_update for create a new db_object for
-            # `for update skip locked` to account for different drivers
             return db_for_update(
                 AutoPruneTaskStatus.select()
                 .where(
