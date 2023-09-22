@@ -190,7 +190,7 @@ def update_autoprune_task(task, task_status):
         task.last_ran_ms = get_epoch_timestamp_ms()
         task.save()
     except AutoPruneTaskStatus.DoesNotExist:
-            return None
+        return None
     except Exception as err:
         raise Exception(
             f"Error updating autoprune task for namespace id: {task.namespace_id}, task_status: {task_status} with error as: {str(err)}"
