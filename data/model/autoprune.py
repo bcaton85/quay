@@ -11,7 +11,7 @@ from data.database import (
     get_epoch_timestamp_ms,
     db_for_update,
 )
-from data.model import db_transaction, modelutil, oci
+from data.model import db_transaction, modelutil, oci, InvalidUsernameException, NamespacePolicyAlreadyExists
 from enum import Enum
 
 from util.timedeltastring import convert_to_timedelta
@@ -27,6 +27,7 @@ class AutoPruneMethod(Enum):
 
 class NamespaceAutoPrunePolicy:
     def __init__(self, db_row):
+        self.namespace_id = db_row.namespace_id
         config = json.loads(db_row.policy)
         self._db_row = db_row
         self.uuid = db_row.uuid
@@ -37,7 +38,7 @@ class NamespaceAutoPrunePolicy:
         return self._db_row
 
     def get_view(self):
-        return {"uuid": self.uuid, "method": self.method, "value": self.config.get("value")}
+        return {"uuid": self.uuid, "method": self.method, "value": self.config.get("value"), "namespace_id": self.namespace_id}
 
 
 def valid_value(method, value):
@@ -113,18 +114,16 @@ def create_namespace_autoprune_policy(orgname, policy_config, create_task=False)
                     ))
                 .get()).id
         except User.DoesNotExist:
-            # TODO: Re-throw with something along the lines of InvalidNamespaceException
-            raise User.DoesNotExist
+            raise InvalidUsernameException("Invalid namespace provided: %s" % (orgname))
 
         if namespace_has_autoprune_policy(namespace_id):
-            # TODO: throw namespace already has policy error
-            return
+            raise NamespacePolicyAlreadyExists("Policy for this namespace already exists, delete existing to create new policy")
 
         new_policy = NamespaceAutoPrunePolicyTable.create(
             namespace=namespace_id, policy=json.dumps(policy_config)
         )
 
-        # Add task if it doesn't already exist
+        # TODO: Add task if it doesn't already exist
         if create_task and not namespace_has_autoprune_task(namespace_id):
             AutoPruneTaskStatus.create(namespace=namespace_id, status="queued", last_ran_ms=None)
 
@@ -146,8 +145,7 @@ def update_namespace_autoprune_policy(orgname, uuid, policy_config):
                 DeletedNamespace.select(DeletedNamespace.namespace)
             )).get().id
     except User.DoesNotExist:
-        # TODO: Re-throw with something along the lines of InvalidNamespaceException
-        raise User.DoesNotExist
+        raise InvalidUsernameException("Invalid namespace provided: %s" % (orgname))
 
     (
         NamespaceAutoPrunePolicyTable.update(policy=json.dumps(policy_config))
