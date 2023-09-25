@@ -746,6 +746,8 @@ class User(BaseModel):
                     QuotaLimits,
                     RedHatSubscriptions,
                     OrganizationRhSkus,
+                    NamespaceAutoPrunePolicy,
+                    AutoPruneTaskStatus,
                 }
                 | appr_classes
                 | v22_classes
