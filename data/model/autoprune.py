@@ -44,12 +44,7 @@ class NamespaceAutoPrunePolicy:
         return self._db_row
 
     def get_view(self):
-        return {
-            "uuid": self.uuid,
-            "method": self.method,
-            "value": self.config.get("value"),
-            "namespace_id": self.namespace_id,
-        }
+        return {"uuid": self.uuid, "method": self.method, "value": self.config.get("value"), "namespace_id": self.namespace_id}
 
 
 def valid_value(method, value):
