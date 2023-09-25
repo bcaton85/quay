@@ -2006,21 +2006,15 @@ class OrganizationRhSkus(BaseModel):
 
 
 class NamespaceAutoPrunePolicy(BaseModel):
-    """
-    TODO: Make sure these data types are correct
-    """
-    uuid = CharField(default=uuid_generator, max_length=36, index=True)
-    namespace = QuayUserField(index=True)
-    policy = JSONField()
+    uuid = CharField(default=uuid_generator, max_length=36, index=True, null=False)
+    namespace = QuayUserField(index=True, null=False)
+    policy = JSONField(null=False, default={})
 
 
 class AutoPruneTaskStatus(BaseModel):
-    """
-    TODO: Make sure these data types are correct
-    """
-    namespace = QuayUserField(index=True)
-    last_ran_ms = BigIntegerField(null=True)
-    status = TextField()
+    namespace = QuayUserField(index=True, null=False)
+    last_ran_ms = BigIntegerField(null=True, index=True)
+    status = TextField(null=True)
 
 
 # Defines a map from full-length index names to the legacy names used in our code
