@@ -33,7 +33,6 @@ class AutoPruneMethod(Enum):
 
 class NamespaceAutoPrunePolicy:
     def __init__(self, db_row):
-        self.namespace_id = db_row.namespace_id
         config = json.loads(db_row.policy)
         self._db_row = db_row
         self.uuid = db_row.uuid
@@ -44,12 +43,7 @@ class NamespaceAutoPrunePolicy:
         return self._db_row
 
     def get_view(self):
-        return {
-            "uuid": self.uuid,
-            "method": self.method,
-            "value": self.config.get("value"),
-            "namespace_id": self.namespace_id,
-        }
+        return {"uuid": self.uuid, "method": self.method, "value": self.config.get("value")}
 
 
 def valid_value(method, value):
@@ -136,7 +130,6 @@ def create_namespace_autoprune_policy(orgname, policy_config, create_task=False)
             namespace=namespace_id, policy=json.dumps(policy_config)
         )
 
-        # TODO: Add task if it doesn't already exist
         if create_task and not namespace_has_autoprune_task(namespace_id):
             AutoPruneTaskStatus.create(namespace=namespace_id, status="queued", last_ran_ms=None)
 

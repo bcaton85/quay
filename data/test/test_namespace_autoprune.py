@@ -70,7 +70,7 @@ class TestNameSpaceAutoprune:
     def test_get_policies_by_orgname(self):
         org_policies = get_namespace_autoprune_policies_by_orgname(ORG3_NAME)
         assert len(org_policies) == 1
-        assert org_policies[0].namespace_id == self.org3.id
+        assert org_policies[0]._db_row.namespace_id == self.org3.id
 
         org2_policies = get_namespace_autoprune_policies_by_orgname(ORG2_NAME)
         assert len(org2_policies) == 0
@@ -78,7 +78,7 @@ class TestNameSpaceAutoprune:
     def test_get_policies_by_namespace_id(self):
         org_policies = get_namespace_autoprune_policies_by_id(self.org3.id)
         assert len(org_policies) == 1
-        assert org_policies[0].namespace_id == self.org3.id
+        assert org_policies[0]._db_row.namespace_id == self.org3.id
 
         org2_policies = get_namespace_autoprune_policies_by_orgname(ORG2_NAME)
         assert len(org2_policies) == 0
@@ -122,3 +122,18 @@ class TestNameSpaceAutoprune:
             str(excerror.value)
             == f"Policy not found for namespace: {ORG3_NAME} with uuid: random-uuid"
         )
+
+    def test_namespace_policy(self):
+        policy_exists = namespace_has_autoprune_policy(self.org3.id)
+        assert policy_exists is True
+        namespace_policy = get_namespace_autoprune_policy(
+            self.org3.username, self.namespace_policy.uuid
+        )
+        assert namespace_policy.uuid == self.namespace_policy.uuid
+        assert namespace_policy._db_row.namespace_id == self.org3.id
+
+        # incorrect params
+        policy_exists = namespace_has_autoprune_policy("randome")
+        assert policy_exists is False
+        resp = get_namespace_autoprune_policy("randome", "randome-uuid")
+        assert resp is None
