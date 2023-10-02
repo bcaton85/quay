@@ -1,14 +1,14 @@
 """“autopruning”
 
 Revision ID: 222debc16e18
-Revises: b82361fba1cd
+Revises: 4366f54be43c
 Create Date: 2023-08-15 15:46:50.280955
 
 """
 
 # revision identifiers, used by Alembic.
-revision = '222debc16e18'
-down_revision = 'b82361fba1cd'
+revision = "222debc16e18"
+down_revision = "4366f54be43c"
 
 import sqlalchemy as sa
 
@@ -21,7 +21,9 @@ def upgrade(op, tables, tester):
         sa.Column("namespace_id", sa.Integer(), nullable=False),
         sa.Column("policy", sa.Text(), nullable=False),
         sa.ForeignKeyConstraint(
-            ["namespace_id"], ["user.id"], name=op.f("fk_namespaceautoprunepolicy_namespace_id_user")
+            ["namespace_id"],
+            ["user.id"],
+            name=op.f("fk_namespaceautoprunepolicy_namespace_id_user"),
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_namespaceautoprunepolicyid")),
     )
