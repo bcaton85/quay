@@ -25,7 +25,7 @@ class AutoPruneWorker(Worker):
                 if not autoprune_task:
                     return
 
-                policies = get_namespace_autoprune_policies_by_id(autoprune_task.namespace_id)
+                policies = get_namespace_autoprune_policies_by_id(autoprune_task.namespace)
                 if not policies:
                     # When implementing repo policies, fetch repo policies before deleting the task
                     delete_autoprune_task(autoprune_task)

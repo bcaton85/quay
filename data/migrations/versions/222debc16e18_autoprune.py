@@ -68,6 +68,13 @@ def upgrade(op, tables, tester):
         unique=False,
     )
 
+    op.bulk_insert(
+        tables.logentrykind,
+        [
+            {"name": "autoprune_tag_delete"},
+        ],
+    )
+
 
 def downgrade(op, tables, tester):
     op.drop_table("namespaceautoprunepolicy")
