@@ -278,11 +278,12 @@ def prune_repo_by_number_of_tags(repo, policy_config, namespace):
         for tag in tags_list:
             try:
                 oci.tag.delete_tag(repo.id, tag.name)
+                # TODO: add performer/token below
                 log.log_action(
                     "autoprune_tag_delete",
                     namespace.username,
                     repository=repo,
-                    metadata={"performer": "autoprune worker"},
+                    metadata={"performer": "autoprune worker", "namespace":namespace.username, "repo": repo.name, "tag":tag.name},
                 )
             except Exception as err:
                 raise Exception(
@@ -313,11 +314,12 @@ def prune_repo_by_creation_date(repo, policy_config, namespace):
         for tag in tags_list:
             try:
                 oci.tag.delete_tag(repo.id, tag.name)
+                # TODO: add performer/token below
                 log.log_action(
                     "autoprune_tag_delete",
                     namespace.username,
                     repository=repo,
-                    metadata={"performer": "autoprune worker"},
+                    metadata={"performer": "autoprune worker", "namespace":namespace.username, "repo": repo.name, "tag":tag.name},
                 )
             except Exception as err:
                 raise Exception(
