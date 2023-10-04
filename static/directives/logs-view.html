@@ -101,7 +101,11 @@
               <i class="fa fa-key"></i>
               <span bo-text="log.metadata.token"></span>
             </span>
-            <span bo-if="!log.performer && !log.metadata.token">
+            <span class="log-performer" bo-if="!log.performer && log.metadata.worker">
+              <i class="fa ci-robot"></i>
+              <span bo-text="log.metadata.worker"></span>
+            </span>
+            <span bo-if="!log.performer && !log.metadata.token && !log.metadata.worker">
               (anonymous)
             </span>
           </td>

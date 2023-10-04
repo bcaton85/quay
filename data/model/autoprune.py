@@ -283,7 +283,7 @@ def prune_repo_by_number_of_tags(repo, policy_config, namespace):
                     "autoprune_tag_delete",
                     namespace.username,
                     repository=repo,
-                    metadata={"performer": "autoprune worker", "namespace":namespace.username, "repo": repo.name, "tag":tag.name},
+                    metadata={"worker": "autoprune worker", "namespace":namespace.username, "repo": repo.name, "tag":tag.name},
                 )
             except Exception as err:
                 raise Exception(
@@ -319,7 +319,7 @@ def prune_repo_by_creation_date(repo, policy_config, namespace):
                     "autoprune_tag_delete",
                     namespace.username,
                     repository=repo,
-                    metadata={"performer": "autoprune worker", "namespace":namespace.username, "repo": repo.name, "tag":tag.name},
+                    metadata={"worker": "autoprune worker", "namespace":namespace.username, "repo": repo.name, "tag":tag.name},
                 )
             except Exception as err:
                 raise Exception(
