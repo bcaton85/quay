@@ -29,7 +29,7 @@ export default function EditExpirationModal(props: EditExpirationModalProps) {
   // Setting a default value here to avoid this known Patternfly DatePicker issue:
   // https://github.com/patternfly/patternfly-react/issues/9700
   const defaultDate = new Date();
-  defaultDate.setDate(defaultDate.getDate() + 1);
+  defaultDate.setDate(defaultDate.getDate());
 
   const initialDate: Date = isNullOrUndefined(props.expiration)
     ? null
@@ -152,6 +152,8 @@ export default function EditExpirationModal(props: EditExpirationModalProps) {
     const now = new Date();
     now.setHours(0);
     now.setMinutes(0);
+    now.setSeconds(0);
+    now.setMilliseconds(0);
     return date < now ? 'Date is before the allowable range.' : '';
   };
 

@@ -547,6 +547,15 @@ describe('Repository Details Page', () => {
       .within(() => {
         cy.contains('latest').should('exist');
       });
+
+    // Ensure current date can be chosen
+    cy.get('[aria-label="Toggle date picker"]').click();
+    cy.get(`[aria-label="${moment().format('D MMMM YYYY')}"]`).click();
+    cy.get('input[aria-label="Date picker"]').should(
+      'have.value',
+      moment().format('dddd, MMMM D, YYYY'),
+    );
+
     cy.get('[aria-label="Toggle date picker"]').click();
     cy.get('button[aria-label="Next month"]').click();
     const oneMonth = moment().add(1, 'month').format('D MMMM YYYY');
