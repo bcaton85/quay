@@ -305,11 +305,13 @@ class OCIManifest(ManifestInterface):
                 compressed_size=image_layer.compressed_size,
                 is_remote=is_remote,
                 urls=urls,
-                command=image_layer.history.command,
+                command=image_layer.history.command if image_layer.history else None,
                 blob_digest=image_layer.blob_digest,
-                created_datetime=image_layer.history.created_datetime,
-                author=image_layer.history.author,
-                comment=image_layer.history.comment,
+                created_datetime=image_layer.history.created_datetime
+                if image_layer.history
+                else None,
+                author=image_layer.history.author if image_layer.history else None,
+                comment=image_layer.history.comment if image_layer.history else None,
                 internal_layer=image_layer,
             )
 
