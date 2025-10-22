@@ -20,13 +20,13 @@ proxy_set_header Transfer-Encoding $http_transfer_encoding;
 absolute_redirect off;
 
 location /angular {
-    # Expire cookie and switch to old UI
-    add_header Set-Cookie "defaultui=angular; path=/; Expires=Thu, Jan 01 1970 00:00:00 UTC";
+    # Set cookie to switch to angular UI
+    add_header Set-Cookie "defaultui=angular; path=/; SameSite=Lax; HttpOnly;" always;
     return 302 /?$args;
 }
 
 location /react {
-    # Set cookie and switch to new UI
+    # Set cookie to switch to react UI
     add_header Set-Cookie "defaultui=react; path=/; SameSite=Lax; HttpOnly;" always;
     return 302 /?$args;
 }
