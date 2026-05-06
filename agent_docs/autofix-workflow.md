@@ -11,7 +11,7 @@ Automated workflow for discovering and processing PROJQUAY JIRA issues labeled `
 
 ### 1. Discover eligible issues
 
-Use the `mcp__mcp-atlassian__jira_search` tool to find all PROJQUAY issues with the `autofix` label that do **not** have the `autofix-started` label:
+Use the `acli` tool to find all PROJQUAY issues with the `autofix` label that do **not** have the `autofix-started` label:
 
 - **jql**: `project = PROJQUAY AND labels = "autofix" AND labels != "autofix-started" ORDER BY updated DESC`
 - **fields**: `summary,status,issuetype,priority,assignee,labels,updated`
